@@ -203,7 +203,7 @@ fun GltfFile.buildSceneNodes(): GltfSceneData {
                 drawCommand.primitive,
                 0,
                 drawCommand.vertexCount)
-        val material = materials[material].createSceneMaterial()
+        val material = materials?.getOrNull(material)?.createSceneMaterial() ?: PBRMaterial()
         return MeshPrimitive(geometry, material)
     }
 
