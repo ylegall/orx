@@ -2,10 +2,8 @@ package org.openrndr.extra.dnk3
 
 import org.openrndr.color.ColorRGBa
 import org.openrndr.draw.*
-import org.openrndr.draw.depthBuffer
 import org.openrndr.extra.fx.blur.ApproximateGaussianBlur
 import org.openrndr.math.Matrix44
-import org.openrndr.math.transforms.normalMatrix
 
 class SceneRenderer {
 
@@ -31,6 +29,7 @@ class SceneRenderer {
 
     var drawFinalBuffer = true
 
+    var first = true
     fun draw(drawer: Drawer, scene: Scene) {
         drawer.pushStyle()
         drawer.depthWrite = true
@@ -40,10 +39,13 @@ class SceneRenderer {
 
         scene.dispatcher.execute()
 
-
         // update all the transforms
         scene.root.scan(Matrix44.IDENTITY) { p ->
-            worldTransform = p * transform
+            if (p !== Matrix44.IDENTITY) {
+                worldTransform = p * transform
+            } else {
+                worldTransform = transform
+            }
             worldTransform
         }
 
@@ -226,9 +228,8 @@ class SceneRenderer {
                         val nodeInverse = it.node.worldTransform.inversed
 
 
-
                         val jointTransforms = (skinnedMesh.joints zip skinnedMesh.inverseBindMatrices)
-                                .map{ (nodeInverse * it.first.worldTransform * it.second) }
+                                .map { (nodeInverse * it.first.worldTransform * it.second) }
 //                        val jointNormalTransforms = jointTransforms.map { Matrix44.IDENTITY }
 
                         val shadeStyle = primitive.material.generateShadeStyle(materialContext, primitiveContext)
@@ -269,7 +270,7 @@ class SceneRenderer {
                 .forEach {
                     val primitive = it.content
                     drawer.isolated {
-                        val primitiveContext = PrimitiveContext(true,  false)
+                        val primitiveContext = PrimitiveContext(true, false)
                         val shadeStyle = primitive.primitive.material.generateShadeStyle(materialContext, primitiveContext)
                         shadeStyle.parameter("viewMatrixInverse", drawer.view.inversed)
                         primitive.primitive.material.applyToShadeStyle(materialContext, shadeStyle)
