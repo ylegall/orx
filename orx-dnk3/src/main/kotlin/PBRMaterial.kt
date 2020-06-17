@@ -447,7 +447,7 @@ class PBRMaterial : Material {
                     } else {
                         val index = rt.colorBufferIndex(it.targetOutput)
                         val type = rt.colorBuffer(index).type
-                        val format = rt.colorBuffer(0).format
+                        val format = rt.colorBuffer(index).format
                         this.output(it.targetOutput, ShadeStyleOutput(index, format, type))
                     }
                 }
