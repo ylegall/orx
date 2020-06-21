@@ -4,19 +4,15 @@ import org.openrndr.Dispatcher
 import org.openrndr.math.Matrix44
 import org.openrndr.math.Vector3
 import org.openrndr.math.Vector4
-import java.util.*
 
 class Scene(val root: SceneNode = SceneNode(), val dispatcher: Dispatcher = Dispatcher()) {
-    val features = mutableListOf<Feature>()
     override fun hashCode(): Int {
-        var result = root.hashCode()
-        result = result * 31 + features.hashCode()
-        return result
+        return root.hashCode()
     }
-    fun hash(): String = Base64.getEncoder().encodeToString(hashCode().toString().toByteArray())
 }
 
-open class SceneNode {
+
+open class SceneNode() {
     var name: String = ""
     var entities: MutableList<Entity> = mutableListOf()
     var parent: SceneNode? = null

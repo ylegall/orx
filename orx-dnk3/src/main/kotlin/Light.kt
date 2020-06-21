@@ -18,10 +18,10 @@ interface AttenuatedLight {
 }
 
 class DirectionalLight(var direction: Vector3 = -Vector3.UNIT_Z, override var shadows: Shadows = Shadows.None) : Light(), ShadowLight {
-    var projectionSize = 200.0
+    var projectionSize = 10.0
 
     override fun projection(renderTarget: RenderTarget): Matrix44 {
-        return ortho(-projectionSize / 2.0, projectionSize / 2.0, -projectionSize / 2.0, projectionSize / 2.0, 1.0, 250.0)
+        return ortho(-projectionSize / 2.0, projectionSize / 2.0, -projectionSize / 2.0, projectionSize / 2.0, 1.0, 150.0)
     }
 
     override fun hashCode(): Int {
@@ -64,7 +64,7 @@ class HemisphereLight(var direction: Vector3 = Vector3.UNIT_Y,
 
 class PointLight(var constantAttenuation: Double = 1.0,
                  var linearAttenuation: Double = 0.0,
-                 var quadraticAttenuation: Double = 1.0) : Light() {
+                 var quadraticAttenuation: Double = 0.0) : Light() {
     override fun hashCode(): Int {
         var result = constantAttenuation.hashCode()
         result = 31 * result + linearAttenuation.hashCode()

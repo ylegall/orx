@@ -4,36 +4,33 @@ import org.openrndr.color.ColorRGBa
 import org.openrndr.draw.*
 import org.openrndr.extra.dnk3.cubemap.CubemapPassthrough
 import org.openrndr.extra.dnk3.cubemap.IrradianceConvolution
-import org.openrndr.extra.dnk3.cubemap.evaluateSHIrradiance
-import org.openrndr.extra.dnk3.cubemap.irradianceCoefficients
-import org.openrndr.extra.dnk3.features.IrradianceSH
 import org.openrndr.extra.fx.blur.ApproximateGaussianBlur
 import org.openrndr.math.Matrix44
-import org.openrndr.math.Vector3
-import java.io.File
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
-
-class RenderContext(
-        val lights: List<NodeContent<Light>>,
-        val meshes: List<NodeContent<Mesh>>,
-        val skinnedMeshes: List<NodeContent<SkinnedMesh>>,
-        val instancedMeshes: List<NodeContent<InstancedMesh>>,
-        val fogs: List<NodeContent<Fog>>
-)
 
 class SceneRenderer {
 
     class Configuration {
         var multisampleLines = false
     }
+
     val configuration = Configuration()
+
+    val irradianceConvolution = IrradianceConvolution()
+    val passthrough = CubemapPassthrough();
 
     val blur = ApproximateGaussianBlur()
 
     var shadowLightTargets = mutableMapOf<ShadowLight, RenderTarget>()
     var meshCubemaps = mutableMapOf<Mesh, Cubemap>()
 
+    var cubemapDepthBuffer = depthBuffer(256, 256, DepthFormat.DEPTH16, BufferMultisample.Disabled)
+
+
+    val tempCubemap = cubemap(256)
+    val filteredCubemap = cubemap(256)
+
+
+    var irradianceArrayCubemap: ArrayCubemap? = null
 
     var outputPasses = mutableListOf(DefaultOpaquePass, DefaultTransparentPass)
     var outputPassTarget: RenderTarget? = null
@@ -64,17 +61,18 @@ class SceneRenderer {
             worldTransform
         }
 
-        val context = RenderContext(
-            lights = scene.root.findContent { this as? Light },
-            meshes = scene.root.findContent { this as? Mesh },
-            skinnedMeshes = scene.root.findContent { this as? SkinnedMesh },
-            fogs = scene.root.findContent { this as? Fog },
-            instancedMeshes = scene.root.findContent { this as? InstancedMesh }
-        )
+        val lights = scene.root.findContent { this as? Light }
+        val meshes = scene.root.findContent { this as? Mesh }
+        val skinnedMeshes = scene.root.findContent { this as? SkinnedMesh }
 
-        // shadow passes
+        val fogs = scene.root.findContent { this as? Fog }
+        val instancedMeshes = scene.root.findContent { this as? InstancedMesh }
+
+        val irradianceProbes = scene.root.findContent { this as? IrradianceProbe }
+        val irradianceProbePositions = irradianceProbes.map { it.node.worldPosition }
+
         run {
-            context.lights.filter { it.content is ShadowLight && (it.content as ShadowLight).shadows is Shadows.MappedShadows }.forEach {
+            lights.filter { it.content is ShadowLight && (it.content as ShadowLight).shadows is Shadows.MappedShadows }.forEach {
                 val shadowLight = it.content as ShadowLight
                 val pass: RenderPass
                 pass = when (shadowLight.shadows) {
@@ -93,7 +91,7 @@ class SceneRenderer {
                 target.clearDepth(depth = 1.0)
 
                 val look = shadowLight.view(it.node)
-                val materialContext = MaterialContext(pass, context.lights, context.fogs, shadowLightTargets, emptyMap(), 0)
+                val materialContext = MaterialContext(pass, lights, fogs, shadowLightTargets, emptyMap(), 0)
                 drawer.isolatedWithTarget(target) {
                     drawer.projection = shadowLight.projection(target)
                     drawer.view = look
@@ -101,7 +99,7 @@ class SceneRenderer {
 
                     drawer.clear(ColorRGBa.BLACK)
                     drawer.cullTestPass = CullTestPass.FRONT
-                    drawPass(drawer, pass, materialContext, context)
+                    drawPass(drawer, pass, materialContext, meshes, instancedMeshes, skinnedMeshes)
                 }
                 when (shadowLight.shadows) {
                     is Shadows.VSM -> {
@@ -115,17 +113,59 @@ class SceneRenderer {
             }
         }
 
-        // -- feature passes
-        for (feature in scene.features) {
-            feature.update(drawer, this, scene, feature, context)
+
+        run {
+            if (irradianceArrayCubemap == null) {
+                irradianceArrayCubemap = arrayCubemap(256, irradianceProbes.size)
+            }
+            var probeID = 0
+
+            for ((node, probe) in irradianceProbes) {
+
+                if (probe.dirty) {
+                    println("rendering probe")
+                    val pass = IrradianceProbePass
+                    val materialContext = MaterialContext(pass, lights, fogs, shadowLightTargets, emptyMap(), 0)
+                    val position = node.worldPosition
+
+                    for (side in CubemapSide.values()) {
+                        val target = renderTarget(256, 256) {
+                            this.arrayCubemap(irradianceArrayCubemap!!, side, probeID )
+                            this.depthBuffer(cubemapDepthBuffer)
+                        }
+                        drawer.isolatedWithTarget(target) {
+                            drawer.clear(ColorRGBa.BLACK)
+                            //drawer.perspective(90.0, 1.0, 0.1, 100.0)
+                            drawer.projection = probe.projectionMatrix
+                            drawer.view = Matrix44.IDENTITY
+                            drawer.model = Matrix44.IDENTITY
+                            drawer.lookAt(position, position + side.forward, side.up)
+                            drawPass(drawer, pass, materialContext, meshes, instancedMeshes, skinnedMeshes)
+                        }
+
+                        target.detachDepthBuffer()
+                        target.detachColorBuffers()
+                        target.destroy()
+                    }
+
+                    irradianceArrayCubemap!!.copyTo(probeID, tempCubemap)
+                    irradianceConvolution.apply(tempCubemap, filteredCubemap)
+//                    passthrough.apply(tempCubemap, filteredCubemap)
+                    filteredCubemap.copyTo(irradianceArrayCubemap!!, probeID)
+
+
+                    probeID++
+                    probe.dirty = false
+                }
+            }
         }
 
-        // -- output passes
+
         run {
-            val irradianceSH = scene.features.find { it is IrradianceSH } as? IrradianceSH
             for (pass in outputPasses) {
-                val materialContext = MaterialContext(pass, context.lights, context.fogs, shadowLightTargets, meshCubemaps, irradianceSH?.probeCount?:0)
-                materialContext.irradianceSH = irradianceSH
+                val materialContext = MaterialContext(pass, lights, fogs, shadowLightTargets, meshCubemaps, irradianceProbes.size)
+                materialContext.irradianceArrayCubemap = irradianceArrayCubemap
+                materialContext.irradianceProbePositions = irradianceProbePositions
 
                 val defaultPasses = setOf(DefaultTransparentPass, DefaultOpaquePass)
 
@@ -150,7 +190,7 @@ class SceneRenderer {
                     }
                 }
                 outputPassTarget?.bind()
-                drawPass(drawer, pass, materialContext, context)
+                drawPass(drawer, pass, materialContext, meshes, instancedMeshes, skinnedMeshes)
                 outputPassTarget?.unbind()
 
                 outputPassTarget?.let { output ->
@@ -160,7 +200,7 @@ class SceneRenderer {
                     }
                 }
             }
-            val lightContext = LightContext(context.lights, shadowLightTargets)
+            val lightContext = LightContext(lights, shadowLightTargets)
             val postContext = PostContext(lightContext, drawer.view.inversed)
 
             for (postStep in postSteps) {
@@ -184,12 +224,14 @@ class SceneRenderer {
         }
     }
 
-    internal fun drawPass(drawer: Drawer, pass: RenderPass, materialContext: MaterialContext,
-                          context: RenderContext
+    private fun drawPass(drawer: Drawer, pass: RenderPass, materialContext: MaterialContext,
+                         meshes: List<NodeContent<Mesh>>,
+                         instancedMeshes: List<NodeContent<InstancedMesh>>,
+                         skinnedMeshes: List<NodeContent<SkinnedMesh>>
     ) {
 
         drawer.depthWrite = pass.depthWrite
-        val primitives = context.meshes.flatMap { mesh ->
+        val primitives = meshes.flatMap { mesh ->
             mesh.content.primitives.map { primitive ->
                 NodeContent(mesh.node, primitive)
             }
@@ -228,7 +270,7 @@ class SceneRenderer {
                 }
 
 
-        val skinnedPrimitives = context.skinnedMeshes.flatMap { mesh ->
+        val skinnedPrimitives = skinnedMeshes.flatMap { mesh ->
             mesh.content.primitives.map { primitive ->
                 NodeContent(mesh.node, Pair(primitive, mesh))
             }
@@ -259,6 +301,7 @@ class SceneRenderer {
                         val shadeStyle = primitive.material.generateShadeStyle(materialContext, primitiveContext)
 
                         shadeStyle.parameter("jointTransforms", jointTransforms.toTypedArray())
+//                        shadeStyle.parameter("jointNormalTransforms", jointNormalTransforms.toTypedArray())
 
                         shadeStyle.parameter("viewMatrixInverse", drawer.view.inversed)
                         primitive.material.applyToShadeStyle(materialContext, shadeStyle)
@@ -281,7 +324,7 @@ class SceneRenderer {
                 }
 
 
-        val instancedPrimitives = context.instancedMeshes.flatMap { mesh ->
+        val instancedPrimitives = instancedMeshes.flatMap { mesh ->
             mesh.content.primitives.map { primitive ->
                 NodeContent(mesh.node, MeshPrimitiveInstance(primitive, mesh.content.instances, mesh.content.attributes))
             }
@@ -318,10 +361,4 @@ fun sceneRenderer(builder: SceneRenderer.() -> Unit): SceneRenderer {
     val sceneRenderer = SceneRenderer()
     sceneRenderer.builder()
     return sceneRenderer
-}
-
-internal fun ByteBuffer.putVector3(v: Vector3) {
-    putFloat(v.x.toFloat())
-    putFloat(v.y.toFloat())
-    putFloat(v.z.toFloat())
 }

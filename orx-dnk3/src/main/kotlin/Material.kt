@@ -1,11 +1,9 @@
 package org.openrndr.extra.dnk3
 
 import org.openrndr.draw.*
-import org.openrndr.extra.dnk3.features.IrradianceSH
 import org.openrndr.math.Vector3
 
 interface Material {
-    val name: String?
     var doubleSided: Boolean
     var transparent: Boolean
     val fragmentID: Int
@@ -14,7 +12,6 @@ interface Material {
 }
 
 class DummyMaterial : Material {
-    override var name: String? = null
     override var doubleSided: Boolean = true
     override var transparent: Boolean = false
     override var fragmentID = 0
@@ -45,11 +42,13 @@ data class MaterialContext(val pass: RenderPass,
                            val shadowMaps: Map<ShadowLight, RenderTarget>,
                            val meshCubemaps: Map<Mesh, Cubemap>,
                            val irradianceProbeCount: Int
-) {
+                           ) {
 
-    var irradianceSH: IrradianceSH? = null
-
+    var irradianceArrayCubemap: ArrayCubemap? = null
+    var irradianceProbePositions: List<Vector3> = emptyList()
 }
+
+
 
 
 data class PrimitiveContext(val hasNormalAttribute: Boolean, val hasSkinning: Boolean)
