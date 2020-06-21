@@ -133,3 +133,12 @@ class LDRColorFacet : ColorBufferFacetCombiner(setOf(FacetType.DIFFUSE, FacetTyp
     
     """
 }
+
+class DiffuseIrradianceFacet : ColorBufferFacetCombiner(setOf(FacetType.DIFFUSE, FacetType.SPECULAR), "color", ColorFormat.RGBa, ColorType.UINT8) {
+    override fun generateShader() = """
+    vec3 finalColor =  (max(vec3(0.0), f_diffuse.rgb) + max(vec3(0.0), f_emission.rgb));
+    o_$targetOutput = vec4(finalColor.rgb, 1.0);
+    
+    
+    """
+}

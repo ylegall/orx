@@ -137,6 +137,7 @@ private fun TextureFromCode.fs(index: Int, target: TextureTarget) = """
 enum class TextureFunction(val function: (String, String) -> String) {
     TILING({ texture, uv -> "texture($texture, $uv)" }),
     NOT_TILING({ texture, uv -> "textureNoTile(p_textureNoise, $texture, x_noTileOffset, $uv)" })
+    ;
 }
 
 /**
@@ -155,7 +156,16 @@ class ModelCoordinates(texture: ColorBuffer,
     override fun toString(): String {
         return "ModelCoordinates(texture: $texture, input: $input, $tangentInput: $tangentInput, textureFunction: $textureFunction, pre: $pre, post: $post)"
     }
+
+    override fun hashCode(): Int {
+        var result = input.hashCode()
+        result = 31 * result + (tangentInput?.hashCode() ?: 0)
+        result = 31 * result + (pre?.hashCode() ?: 0)
+        result = 31 * result + (post?.hashCode() ?: 0)
+        return result
+    }
 }
+
 
 class Triplanar(texture: ColorBuffer,
                 var scale: Double = 1.0,
@@ -170,6 +180,17 @@ class Triplanar(texture: ColorBuffer,
         texture.wrapU = WrapMode.REPEAT
         texture.wrapV = WrapMode.REPEAT
     }
+
+    override fun hashCode(): Int {
+        var result = scale.hashCode()
+        result = 31 * result + offset.hashCode()
+        result = 31 * result + sharpness.hashCode()
+        result = 31 * result + (pre?.hashCode() ?: 0)
+        result = 31 * result + (post?.hashCode() ?: 0)
+        return result
+    }
+
+
 }
 
 private fun ModelCoordinates.fs(index: Int) = """
@@ -250,6 +271,10 @@ sealed class TextureTarget(val name: String) {
     override fun toString(): String {
         return "TextureTarget(name: $name)"
     }
+
+    override fun hashCode(): Int {
+        return name.hashCode()
+    }
 }
 
 class Texture(var source: TextureSource,
@@ -261,6 +286,12 @@ class Texture(var source: TextureSource,
 
     override fun toString(): String {
         return "Texture(source: $source, target: $target)"
+    }
+
+    override fun hashCode(): Int {
+        var result = source.hashCode()
+        result = 31 * result + target.hashCode()
+        return result
     }
 }
 
@@ -321,6 +352,8 @@ class PBRMaterial : Material {
             vec3 m_normal = vec3(0.0, 0.0, 1.0);
             vec4 f_fog = vec4(0.0, 0.0, 0.0, 0.0);
             vec3 f_worldNormal = v_worldNormal;
+            vec3 f_emission = m_emission;
+
         """.trimIndent()
 
             val textureFs = if (needLight) {
@@ -380,7 +413,6 @@ class PBRMaterial : Material {
             val lightFS = if (needLight) """
         vec3 f_diffuse = vec3(0.0);
         vec3 f_specular = vec3(0.0);
-        vec3 f_emission = m_emission;
         vec3 f_ambient = vec3(0.0);
         float f_occlusion = 1.0;
         vec3 N = normalize(f_worldNormal);
@@ -408,6 +440,29 @@ class PBRMaterial : Material {
                     else -> TODO()
                 }
             }.joinToString("\n")}
+
+        ${if (materialContext.irradianceProbeCount > 0) """
+            vec3 sum = vec3(0.0);
+            float tw = 0.0;
+            for (int probe = 0; probe < 27; ++probe) {
+                vec3 d = v_worldPosition - p_irradianceProbePositions[probe];
+                vec3 pn = normalize(d);
+                pn = normalize(v_worldNormal + pn);
+                float l = length(d);
+                vec4 tc = vec4(pn, float(probe));
+                
+                float w = 1.0 / (1.0+l*l);
+//                if (l > 1.0) {
+//                    w = 0.0;                                
+//                }
+                sum += texture(p_irradiance, tc).rgb * w;
+                tw += w;                                                                                  
+            
+            }
+            f_diffuse = sum/tw;
+            f_specular = vec3(0.0);
+            
+        """.trimIndent() else ""}  
 
         ${materialContext.fogs.mapIndexed { index, (node, fog) ->
                 fog.fs(index)
@@ -442,7 +497,7 @@ class PBRMaterial : Material {
                 fragmentTransform = fs
 
                 materialContext.pass.combiners.map {
-                    if (rt is ProgramRenderTarget || materialContext.pass === DefaultPass || materialContext.pass === DefaultOpaquePass || materialContext.pass == DefaultTransparentPass) {
+                    if (rt is ProgramRenderTarget || materialContext.pass === DefaultPass || materialContext.pass === DefaultOpaquePass || materialContext.pass == DefaultTransparentPass || materialContext.pass == IrradianceProbePass) {
                         this.output(it.targetOutput, ShadeStyleOutput(0))
                     } else {
                         val index = rt.colorBufferIndex(it.targetOutput)
@@ -469,6 +524,12 @@ class PBRMaterial : Material {
         shadeStyle.parameter("metalness", metalness)
         shadeStyle.parameter("roughness", roughness)
         shadeStyle.parameter("fragmentID", fragmentID)
+
+        if (context.irradianceProbeCount > 0) {
+            shadeStyle.parameter("irradiance", context.irradianceArrayCubemap!!)
+            shadeStyle.parameter("irradianceProbePositions", context.irradianceProbePositions.toTypedArray())
+        }
+
 
         parameters.forEach { (k, v) ->
             when (v) {
@@ -598,5 +659,26 @@ class PBRMaterial : Material {
             }
         }
     }
+
+
+    override fun hashCode(): Int {
+        var result = fragmentID
+        result = 31 * result + doubleSided.hashCode()
+        result = 31 * result + transparent.hashCode()
+//        result = 31 * result + environmentMap.hashCode()
+        result = 31 * result + color.hashCode()
+        result = 31 * result + metalness.hashCode()
+        result = 31 * result + roughness.hashCode()
+        result = 31 * result + emission.hashCode()
+        result = 31 * result + (fragmentPreamble?.hashCode() ?: 0)
+        result = 31 * result + (vertexPreamble?.hashCode() ?: 0)
+        result = 31 * result + (vertexTransform?.hashCode() ?: 0)
+//        result = 31 * result + parameters.hashCode()
+//        result = 31 * result + textures.hashCode()
+//        result = 31 * result + shadeStyles.hashCode()
+        return result
+    }
+
+
 }
 

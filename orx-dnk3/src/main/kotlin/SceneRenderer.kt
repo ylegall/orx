@@ -2,6 +2,8 @@ package org.openrndr.extra.dnk3
 
 import org.openrndr.color.ColorRGBa
 import org.openrndr.draw.*
+import org.openrndr.extra.dnk3.cubemap.CubemapPassthrough
+import org.openrndr.extra.dnk3.cubemap.IrradianceConvolution
 import org.openrndr.extra.fx.blur.ApproximateGaussianBlur
 import org.openrndr.math.Matrix44
 
@@ -13,12 +15,22 @@ class SceneRenderer {
 
     val configuration = Configuration()
 
+    val irradianceConvolution = IrradianceConvolution()
+    val passthrough = CubemapPassthrough();
+
     val blur = ApproximateGaussianBlur()
 
     var shadowLightTargets = mutableMapOf<ShadowLight, RenderTarget>()
     var meshCubemaps = mutableMapOf<Mesh, Cubemap>()
 
     var cubemapDepthBuffer = depthBuffer(256, 256, DepthFormat.DEPTH16, BufferMultisample.Disabled)
+
+
+    val tempCubemap = cubemap(256)
+    val filteredCubemap = cubemap(256)
+
+
+    var irradianceArrayCubemap: ArrayCubemap? = null
 
     var outputPasses = mutableListOf(DefaultOpaquePass, DefaultTransparentPass)
     var outputPassTarget: RenderTarget? = null
@@ -56,6 +68,9 @@ class SceneRenderer {
         val fogs = scene.root.findContent { this as? Fog }
         val instancedMeshes = scene.root.findContent { this as? InstancedMesh }
 
+        val irradianceProbes = scene.root.findContent { this as? IrradianceProbe }
+        val irradianceProbePositions = irradianceProbes.map { it.node.worldPosition }
+
         run {
             lights.filter { it.content is ShadowLight && (it.content as ShadowLight).shadows is Shadows.MappedShadows }.forEach {
                 val shadowLight = it.content as ShadowLight
@@ -76,7 +91,7 @@ class SceneRenderer {
                 target.clearDepth(depth = 1.0)
 
                 val look = shadowLight.view(it.node)
-                val materialContext = MaterialContext(pass, lights, fogs, shadowLightTargets, emptyMap())
+                val materialContext = MaterialContext(pass, lights, fogs, shadowLightTargets, emptyMap(), 0)
                 drawer.isolatedWithTarget(target) {
                     drawer.projection = shadowLight.projection(target)
                     drawer.view = look
@@ -98,10 +113,59 @@ class SceneRenderer {
             }
         }
 
+
         run {
-            //val pass = outputPasses
+            if (irradianceArrayCubemap == null) {
+                irradianceArrayCubemap = arrayCubemap(256, irradianceProbes.size)
+            }
+            var probeID = 0
+
+            for ((node, probe) in irradianceProbes) {
+
+                if (probe.dirty) {
+                    println("rendering probe")
+                    val pass = IrradianceProbePass
+                    val materialContext = MaterialContext(pass, lights, fogs, shadowLightTargets, emptyMap(), 0)
+                    val position = node.worldPosition
+
+                    for (side in CubemapSide.values()) {
+                        val target = renderTarget(256, 256) {
+                            this.arrayCubemap(irradianceArrayCubemap!!, side, probeID )
+                            this.depthBuffer(cubemapDepthBuffer)
+                        }
+                        drawer.isolatedWithTarget(target) {
+                            drawer.clear(ColorRGBa.BLACK)
+                            //drawer.perspective(90.0, 1.0, 0.1, 100.0)
+                            drawer.projection = probe.projectionMatrix
+                            drawer.view = Matrix44.IDENTITY
+                            drawer.model = Matrix44.IDENTITY
+                            drawer.lookAt(position, position + side.forward, side.up)
+                            drawPass(drawer, pass, materialContext, meshes, instancedMeshes, skinnedMeshes)
+                        }
+
+                        target.detachDepthBuffer()
+                        target.detachColorBuffers()
+                        target.destroy()
+                    }
+
+                    irradianceArrayCubemap!!.copyTo(probeID, tempCubemap)
+                    irradianceConvolution.apply(tempCubemap, filteredCubemap)
+//                    passthrough.apply(tempCubemap, filteredCubemap)
+                    filteredCubemap.copyTo(irradianceArrayCubemap!!, probeID)
+
+
+                    probeID++
+                    probe.dirty = false
+                }
+            }
+        }
+
+
+        run {
             for (pass in outputPasses) {
-                val materialContext = MaterialContext(pass, lights, fogs, shadowLightTargets, meshCubemaps)
+                val materialContext = MaterialContext(pass, lights, fogs, shadowLightTargets, meshCubemaps, irradianceProbes.size)
+                materialContext.irradianceArrayCubemap = irradianceArrayCubemap
+                materialContext.irradianceProbePositions = irradianceProbePositions
 
                 val defaultPasses = setOf(DefaultTransparentPass, DefaultOpaquePass)
 
