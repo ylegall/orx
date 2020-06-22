@@ -43,9 +43,9 @@ data class MaterialContext(val pass: RenderPass,
                            val meshCubemaps: Map<Mesh, Cubemap>,
                            val irradianceProbeCount: Int
                            ) {
-
     var irradianceArrayCubemap: ArrayCubemap? = null
     var irradianceProbePositions: List<Vector3> = emptyList()
+    var irradianceSHMap: BufferTexture? = null
 }
 
 

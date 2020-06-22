@@ -2,6 +2,9 @@ package org.openrndr.extra.dnk3
 
 import org.openrndr.color.ColorRGBa
 import org.openrndr.draw.*
+import org.openrndr.extra.dnk3.cubemap.glslEvaluateSH
+import org.openrndr.extra.dnk3.cubemap.glslFetchSH
+import org.openrndr.extra.dnk3.cubemap.glslGatherSH
 import org.openrndr.math.Vector2
 import org.openrndr.math.Vector3
 import org.openrndr.math.Vector4
@@ -353,6 +356,17 @@ class PBRMaterial : Material {
             vec4 f_fog = vec4(0.0, 0.0, 0.0, 0.0);
             vec3 f_worldNormal = v_worldNormal;
             vec3 f_emission = m_emission;
+            
+            ${if (materialContext.irradianceSHMap != null) {
+                """
+                $glslEvaluateSH
+                $glslFetchSH
+                ${glslGatherSH(3, 3, 3, 1.0)}
+                """
+            } else {
+                "" 
+            }
+            }
 
         """.trimIndent()
 
@@ -441,29 +455,7 @@ class PBRMaterial : Material {
                 }
             }.joinToString("\n")}
 
-        ${if (materialContext.irradianceProbeCount > 0) """
-            vec3 sum = vec3(0.0);
-            float tw = 0.0;
-            for (int probe = 0; probe < 27; ++probe) {
-                vec3 d = v_worldPosition - p_irradianceProbePositions[probe];
-                vec3 pn = normalize(d);
-                pn = normalize(v_worldNormal + pn);
-                float l = length(d);
-                vec4 tc = vec4(pn, float(probe));
-                
-                float w = 1.0 / (1.0+l*l);
-//                if (l > 1.0) {
-//                    w = 0.0;                                
-//                }
-                sum += texture(p_irradiance, tc).rgb * w;
-                tw += w;                                                                                  
-            
-            }
-            f_diffuse = sum/tw;
-            f_specular = vec3(0.0);
-            
-        """.trimIndent() else ""}  
-
+        
         ${materialContext.fogs.mapIndexed { index, (node, fog) ->
                 fog.fs(index)
             }.joinToString("\n")}
