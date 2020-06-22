@@ -207,6 +207,7 @@ void gatherSH(samplerBuffer btex, vec3 p, out vec3[9] blend) {
     for (int i = 0; i < 9; ++i) {
         blend[i] =  mix( mix( mix(c000[i], c001[i], f.z), mix(c010[i], c011[i], f.z), f.y), mix( mix(c100[i], c101[i], f.z), mix(c110[i], c111[i], f.z), f.y), f.x);       
     }
+    
               
 }
     

@@ -16,6 +16,13 @@ class Geometry(val vertexBuffers: List<VertexBuffer>,
         return "Geometry(vertexBuffers: $vertexBuffers, indexBuffers: $indexBuffer, primitive: $primitive, offset: $offset, vertexCount: $vertexCount)"
     }
 
+    override fun hashCode(): Int {
+        var result = 0
+        result = 31 * result + primitive.ordinal.hashCode()
+        result = 31 * result + offset.hashCode()
+        result = 31 * result + vertexCount.hashCode()
+        return result
+    }
 }
 
 val DummyGeometry = Geometry(emptyList(), null, DrawPrimitive.TRIANGLES, 0, 0)
@@ -29,6 +36,7 @@ class MeshPrimitive(var geometry: Geometry, var material: Material) {
     override fun hashCode(): Int {
         var result = geometry.hashCode()
         result = 31 * result + material.hashCode()
+
         return result
     }
 }

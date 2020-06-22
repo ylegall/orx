@@ -15,13 +15,10 @@ import java.nio.ByteOrder
 import kotlin.reflect.KMutableProperty0
 
 class SceneAnimation(var channels: List<AnimationChannel>) {
-
     val duration: Double
         get() {
             return channels.maxBy { it.duration }?.duration ?: 0.0
         }
-
-
     fun applyToTargets(input: Double) {
         for (channel in channels) {
             channel.applyToTarget(input)
@@ -33,6 +30,7 @@ sealed class AnimationChannel {
     abstract val duration: Double
     abstract fun applyToTarget(input: Double)
 }
+
 
 class QuaternionChannel(val target: KMutableProperty0<Quaternion>,
                         val keyframer: KeyframerChannelQuaternion) : AnimationChannel() {

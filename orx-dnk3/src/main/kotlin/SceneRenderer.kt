@@ -124,69 +124,77 @@ class SceneRenderer {
 
         run {
             if (irradianceArrayCubemap == null) {
-                irradianceArrayCubemap = arrayCubemap(256, irradianceProbes.size)
+                irradianceArrayCubemap = arrayCubemap(256, 1)
             }
             var probeID = 0
 
-            if (irradianceSHMap == null) {
-                irradianceSHMap = bufferTexture(irradianceProbes.size * 9, format = ColorFormat.RGB, type = ColorType.FLOAT32)
-                val buffer = ByteBuffer.allocateDirect(irradianceProbePositions.size * 9 * 3 * 4)
-                buffer.order(ByteOrder.nativeOrder())
+            if (irradianceSHMap == null && irradianceProbes.size > 0) {
+
+                val hash = scene.hashCode()
+                if (File("sh-$hash.orb").exists()) {
+                    irradianceSHMap = loadBufferTexture(File("sh-$hash.orb"))
+
+                } else {
 
 
-                for ((node, probe) in irradianceProbes) {
-                    if (probe.dirty) {
-                        println("rendering probe")
-                        val pass = IrradianceProbePass
-                        val materialContext = MaterialContext(pass, lights, fogs, shadowLightTargets, emptyMap(), 0)
-                        val position = node.worldPosition
+                    irradianceSHMap = bufferTexture(irradianceProbes.size * 9, format = ColorFormat.RGB, type = ColorType.FLOAT32)
+                    val buffer = ByteBuffer.allocateDirect(irradianceProbePositions.size * 9 * 3 * 4)
+                    buffer.order(ByteOrder.nativeOrder())
 
-                        for (side in CubemapSide.values()) {
-                            val target = renderTarget(256, 256) {
-                                this.arrayCubemap(irradianceArrayCubemap!!, side, probeID)
-                                this.depthBuffer(cubemapDepthBuffer)
+                    for ((node, probe) in irradianceProbes) {
+                        if (probe.dirty) {
+                            println("rendering probe")
+                            val pass = IrradianceProbePass
+                            val materialContext = MaterialContext(pass, lights, fogs, shadowLightTargets, emptyMap(), 0)
+                            val position = node.worldPosition
+
+                            for (side in CubemapSide.values()) {
+                                val target = renderTarget(256, 256) {
+                                    this.arrayCubemap(irradianceArrayCubemap!!, side, 0)
+                                    this.depthBuffer(cubemapDepthBuffer)
+                                }
+                                drawer.isolatedWithTarget(target) {
+                                    drawer.clear(ColorRGBa.BLACK)
+                                    //drawer.perspective(90.0, 1.0, 0.1, 100.0)
+                                    drawer.projection = probe.projectionMatrix
+                                    drawer.view = Matrix44.IDENTITY
+                                    drawer.model = Matrix44.IDENTITY
+                                    drawer.lookAt(position, position + side.forward, side.up)
+                                    drawPass(drawer, pass, materialContext, meshes, instancedMeshes, skinnedMeshes)
+                                }
+
+                                target.detachDepthBuffer()
+                                target.detachColorBuffers()
+                                target.destroy()
                             }
-                            drawer.isolatedWithTarget(target) {
-                                drawer.clear(ColorRGBa.BLACK)
-                                //drawer.perspective(90.0, 1.0, 0.1, 100.0)
-                                drawer.projection = probe.projectionMatrix
-                                drawer.view = Matrix44.IDENTITY
-                                drawer.model = Matrix44.IDENTITY
-                                drawer.lookAt(position, position + side.forward, side.up)
-                                drawPass(drawer, pass, materialContext, meshes, instancedMeshes, skinnedMeshes)
+
+                            irradianceArrayCubemap!!.copyTo(0, tempCubemap)
+
+                            val coefficients = tempCubemap.irradianceCoefficients()
+                            for (coef in coefficients) {
+                                buffer.putVector3((coef))
                             }
 
-                            target.detachDepthBuffer()
-                            target.detachColorBuffers()
-                            target.destroy()
-                        }
 
-                        irradianceArrayCubemap!!.copyTo(probeID, tempCubemap)
+                            val out = evaluateSHIrradiance(Vector3.Companion.UNIT_Y, coefficients)
+                            println(out)
 
-                        val coefficients = tempCubemap.irradianceCoefficients()
-                        for (coef in coefficients) {
-                            buffer.putVector3((coef))
-                        }
-
-
-                        val out = evaluateSHIrradiance(Vector3.Companion.UNIT_Y, coefficients)
-                        println(out)
-
-                        println(coefficients.joinToString(", "))
+                            println(coefficients.joinToString(", "))
 //                    irradianceConvolution.apply(tempCubemap, filteredCubemap)
 ////                    passthrough.apply(tempCubemap, filteredCubemap)
 //                    filteredCubemap.copyTo(irradianceArrayCubemap!!, probeID)
 
 
-                        probeID++
-                        probe.dirty = false
+                            probeID++
+                            probe.dirty = false
+                        }
                     }
-                }
-                irradianceSHMap?.let {
-                    buffer.rewind()
-                    it.write(buffer)
-                    it.saveToFile(File("boo.orb"))
-                    irradianceSHMap = loadBufferTexture("boo.orb")
+                    irradianceSHMap?.let {
+                        buffer.rewind()
+                        it.write(buffer)
+
+                        it.saveToFile(File("sh-$hash.orb"))
+                    }
                 }
             }
         }

@@ -1,3 +1,4 @@
+import kotlinx.coroutines.yield
 import org.openrndr.KEY_ARROW_LEFT
 import org.openrndr.KEY_ARROW_RIGHT
 import org.openrndr.application
@@ -12,9 +13,12 @@ import org.openrndr.extras.camera.Orbital
 import org.openrndr.extras.meshgenerators.boxMesh
 import org.openrndr.extras.meshgenerators.sphereMesh
 import org.openrndr.ffmpeg.ScreenRecorder
+import org.openrndr.launch
 import org.openrndr.math.*
 import org.openrndr.math.transforms.transform
 import java.io.File
+import kotlin.math.cos
+import kotlin.math.sin
 
 fun main() = application {
     configure {
@@ -47,21 +51,23 @@ fun main() = application {
         val probeGeometry = Geometry(listOf(probeBox), null, DrawPrimitive.TRIANGLES, 0, probeBox.vertexCount)
 
         var probeID = 0
-        for (k in -1 .. 1) {
-            for (j in -1 .. 1) {
-                for (i in -1 .. 1) {
+        for (k in -3 .. 3) {
+            for (j in -3 .. 3) {
+                for (i in -3 .. 3) {
+                    val spacing = 0.5
                     val probeNode = SceneNode()
+
                     probeNode.transform = transform {
-                        translate(i * 1.0, j*1.0, k*1.0)
+                        translate(i * spacing, j*spacing, k*spacing)
                     }
                     probeNode.entities.add(IrradianceProbe())
                     val probeMaterial = IrradianceDebugMaterial().apply {
                         this.irradianceProbeID = probeID
                     }
                     probeID++
-                    val probePrimitive = MeshPrimitive(probeGeometry, probeMaterial)
-                    val probeMesh = Mesh(listOf(probePrimitive))
-                    probeNode.entities.add(probeMesh)
+//                    val probePrimitive = MeshPrimitive(probeGeometry, probeMaterial)
+//                    val probeMesh = Mesh(listOf(probePrimitive))
+//                    probeNode.entities.add(probeMesh)
                     scene.root.children.add(probeNode)
                 }
             }
@@ -82,6 +88,35 @@ fun main() = application {
         val side = colorBuffer(256, 256)
 
         println("scene hash is: ${scene.hashCode()}")
+
+        renderer.draw(drawer, scene)
+
+        val dynNode = SceneNode()
+
+        val dynMaterial = PBRMaterial()
+
+        val boxM = boxMesh(0.1, 0.1, 0.1)
+                    val dynPrimitive = MeshPrimitive(probeGeometry, dynMaterial)
+                    val dynMesh = Mesh(listOf(dynPrimitive))
+                    dynNode.entities.add(dynMesh)
+
+
+
+        dynNode.entities.add(dynMesh)
+
+        scene.dispatcher.launch {
+            while(true) {
+                dynNode.transform = transform {
+
+                    translate(cos(seconds)*0.5, 0.5, sin(seconds)*0.5)
+                    scale(2.0)
+                }
+                yield()
+            }
+        }
+
+
+        scene.root.children.add(dynNode)
 
         extend(ScreenRecorder())
         extend {

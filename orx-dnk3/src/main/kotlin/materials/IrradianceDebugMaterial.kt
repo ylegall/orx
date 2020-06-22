@@ -20,17 +20,15 @@ class IrradianceDebugMaterial : Material {
             fragmentPreamble = """
                 $glslEvaluateSH
                 $glslFetchSH
-                ${glslGatherSH(3, 3, 3, 1.0)}
+                ${glslGatherSH(7, 7, 7, 0.5)}
                 vec3 f_emission = vec3(0.0);
             """.trimIndent()
 
             if (context.irradianceArrayCubemap != null) {
                 fragmentTransform = """
                     vec3[9] sh;
-                    //fetchSH(p_shMap, p_irradianceProbeID, sh);
                     gatherSH(p_shMap, v_worldPosition, sh);
-                //x_fill.rgb = texture(p_irradianceMap, vec4(normalize(va_position), float(p_irradianceProbeID))).rgb;
-                x_fill.rgb = evaluateSH(v_worldNormal, sh);
+                x_fill.rgb = evaluateSH(normalize(v_worldNormal), sh);
                 
             """.trimIndent()
             } else {

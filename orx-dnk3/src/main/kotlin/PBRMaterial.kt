@@ -126,7 +126,11 @@ object DummySource : TextureSource() {
 
 abstract class TextureFromColorBuffer(var texture: ColorBuffer, var textureFunction: TextureFunction) : TextureSource()
 
-class TextureFromCode(val code: String) : TextureSource()
+class TextureFromCode(val code: String) : TextureSource() {
+    override fun hashCode(): Int {
+        return code.hashCode()
+    }
+}
 
 private fun TextureFromCode.fs(index: Int, target: TextureTarget) = """
 |vec4 tex$index = vec4(0.0, 0.0, 0.0, 1.0);
@@ -302,7 +306,7 @@ private var fragmentIDCounter = 1
 
 class PBRMaterial : Material {
     override fun toString(): String {
-        return "PBRMaterial(textures: $textures, color: $color, metalness: $metalness, roughness: $roughness, emissive: $emission))"
+        return "PBRMaterial(fragmentID: $fragmentID, doubleSided: $doubleSided, textures: $textures, color: $color, metalness: $metalness, roughness: $roughness, emissive: $emission))"
     }
 
     override var fragmentID = fragmentIDCounter.apply {
@@ -345,6 +349,9 @@ class PBRMaterial : Material {
         val cached = shadeStyles.getOrPut(ContextKey(materialContext, primitiveContext)) {
             val needLight = needLight(materialContext)
             val preambleFS = """
+                
+                
+                
             vec4 m_color = p_color;
             uint f_fragmentID = uint(p_fragmentID);
             float m_f0 = 0.5;
@@ -357,16 +364,7 @@ class PBRMaterial : Material {
             vec3 f_worldNormal = v_worldNormal;
             vec3 f_emission = m_emission;
             
-            ${if (materialContext.irradianceSHMap != null) {
-                """
-                $glslEvaluateSH
-                $glslFetchSH
-                ${glslGatherSH(3, 3, 3, 1.0)}
-                """
-            } else {
-                "" 
-            }
-            }
+            
 
         """.trimIndent()
 
@@ -455,6 +453,15 @@ class PBRMaterial : Material {
                 }
             }.joinToString("\n")}
 
+        ${if (materialContext.irradianceSHMap != null) """
+                                vec3[9] sh;
+                    gatherSH(p_shMap, v_worldPosition, sh);
+                f_diffuse.rgb = clamp(evaluateSH(normalize(v_worldNormal), sh), vec3(0.0), vec3(1.0)) * m_color.rgb;
+                f_ambient.rgb = vec3(0.0);
+                
+        """.trimIndent() else ""
+            
+        }
         
         ${materialContext.fogs.mapIndexed { index, (node, fog) ->
                 fog.fs(index)
@@ -477,6 +484,16 @@ class PBRMaterial : Material {
                      ${(this@PBRMaterial.vertexPreamble) ?: ""}
                 """.trimIndent()
                 fragmentPreamble += """
+                    ${if (materialContext.irradianceSHMap != null) {
+                    """
+                $glslEvaluateSH
+                $glslFetchSH
+                ${glslGatherSH(7, 7, 7, 0.5)}
+                """
+                } else {
+                    ""
+                }
+                }
             |$shaderLinePlaneIntersect
             |$shaderProjectOnPlane
             |$shaderSideOfPlane
@@ -520,6 +537,7 @@ class PBRMaterial : Material {
         if (context.irradianceProbeCount > 0) {
             shadeStyle.parameter("irradiance", context.irradianceArrayCubemap!!)
             shadeStyle.parameter("irradianceProbePositions", context.irradianceProbePositions.toTypedArray())
+            shadeStyle.parameter("shMap", context.irradianceSHMap!!)
         }
 
 
@@ -652,10 +670,9 @@ class PBRMaterial : Material {
         }
     }
 
-
     override fun hashCode(): Int {
-        var result = fragmentID
-        result = 31 * result + doubleSided.hashCode()
+        var result = fragmentID.hashCode()
+        result = 31 * doubleSided.hashCode()
         result = 31 * result + transparent.hashCode()
 //        result = 31 * result + environmentMap.hashCode()
         result = 31 * result + color.hashCode()
@@ -670,7 +687,5 @@ class PBRMaterial : Material {
 //        result = 31 * result + shadeStyles.hashCode()
         return result
     }
-
-
 }
 
