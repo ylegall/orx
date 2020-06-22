@@ -5,6 +5,7 @@ import org.openrndr.math.Vector3
 import org.openrndr.math.max
 import org.openrndr.resourceUrl
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import kotlin.math.sqrt
 
 class SphericalHarmonics : Filter(filterShaderFromUrl(resourceUrl("/shaders/cubemap-filters/spherical-harmonics.frag"))) {
@@ -12,24 +13,30 @@ class SphericalHarmonics : Filter(filterShaderFromUrl(resourceUrl("/shaders/cube
 }
 
 /** based on https://andrew-pham.blog/2019/08/26/spherical-harmonics/ */
-fun genLightingCoefficients(cubemap: Cubemap): Array<Vector3> {
+fun Cubemap.irradianceCoefficients(): Array<Vector3> {
+    val cubemap = this
     require(cubemap.format == ColorFormat.RGB)
     require(cubemap.type == ColorType.FLOAT32)
 
     val result = Array(9) { Vector3.ZERO }
 
     var buffer = ByteBuffer.allocateDirect(cubemap.width * cubemap.width * cubemap.format.componentCount * cubemap.type.componentSize)
+    buffer.order(ByteOrder.nativeOrder())
 
     var weightSum = 0.0
 
     for (side in CubemapSide.values()) {
-        cubemap.side(side).read(buffer)
+        //cubemap.side(side).read(buffer)
+        buffer.rewind()
+        cubemap.read(side, buffer)
+
         buffer.rewind()
         for (y in 0 until cubemap.width) {
             for (x in 0 until cubemap.width) {
                 val rf = buffer.float.toDouble()
                 val gf = buffer.float.toDouble()
                 val bf = buffer.float.toDouble()
+
                 val L = Vector3(rf, gf, bf)
 
                 var u = (x + 0.5) / cubemap.width;
@@ -90,14 +97,14 @@ fun genLightingCoefficientsForNormal(N: Vector3, L: Vector3): Array<Vector3> {
 }
 
 fun Cubemap.mapUVSToN(u: Double, v: Double, side: CubemapSide): Vector3 {
-    return side.right * u + side.up * v + side.forward
+    return (side.right * u + side.up * v + side.forward).normalized
 }
 
 
 // Evaluates the irradiance perceived in the provided direction
 // Analytic method from http://www1.cs.columbia.edu/~ravir/papers/envmap/envmap.pdf eq. 13
 //
-fun evaluateSHIrradiance(direction: Vector3, _SH: Array<Vector3>) : Vector3 {
+fun evaluateSHIrradiance(direction: Vector3, _SH: Array<Vector3>): Vector3 {
     val c1 = 0.42904276540489171563379376569857;    // 4 * Â2.Y22 = 1/4 * sqrt(15.PI)
     val c2 = 0.51166335397324424423977581244463;    // 0.5 * Â1.Y10 = 1/2 * sqrt(PI/3)
     val c3 = 0.24770795610037568833406429782001;    // Â2.Y20 = 1/16 * sqrt(5.PI)
@@ -115,3 +122,93 @@ fun evaluateSHIrradiance(direction: Vector3, _SH: Array<Vector3>) : Vector3 {
                     + (_SH[3] * x + _SH[1] * y + _SH[2] * z) * c2 * 2.0);    // 2.c2.(L11.x + L1-1.y + L10.z)
 }
 
+val glslEvaluateSH = """
+vec3 evaluateSH(vec3 direction, vec3[9] _SH) {
+    const float c1 = 0.42904276540489171563379376569857;    // 4 * Â2.Y22 = 1/4 * sqrt(15.PI)
+    const float c2 = 0.51166335397324424423977581244463;    // 0.5 * Â1.Y10 = 1/2 * sqrt(PI/3)
+    const float c3 = 0.24770795610037568833406429782001;    // Â2.Y20 = 1/16 * sqrt(5.PI)
+    const float c4 = 0.88622692545275801364908374167057;    // Â0.Y00 = 1/2 * sqrt(PI)
+    
+    float x = direction.x;
+    float y = direction.y;
+    float z = direction.z;
+    
+    return max(vec3(0.0),
+            _SH[8] * (c1 * (x * x - y * y))                       // c1.L22.(x²-y²)
+                    + _SH[6] * (c3 * (3.0 * z * z - 1))                   // c3.L20.(3.z² - 1)
+                    + _SH[0] * c4                                   // c4.L00
+                    + (_SH[4] * x * y + _SH[7] * x * z + _SH[5] * y * z) * 2.0 * c1 // 2.c1.(L2-2.xy + L21.xz + L2-1.yz)
+                    + (_SH[3] * x + _SH[1] * y + _SH[2] * z) * c2 * 2.0);    // 2.c2.(L11.x + L1-1.y + L10.z) 
+}
+""".trimIndent()
+
+val glslFetchSH = """
+// --  glslFetchSH     
+void fetchSH(samplerBuffer btex, int probeID, out vec3[9] _SH) {
+    int offset = probeID * 9;
+    _SH[0] = texelFetch(btex, offset).rgb;
+    _SH[1] = texelFetch(btex, offset+1).rgb;
+    _SH[2] = texelFetch(btex, offset+2).rgb;
+    _SH[3] = texelFetch(btex, offset+3).rgb;
+    _SH[4] = texelFetch(btex, offset+4).rgb;
+    _SH[5] = texelFetch(btex, offset+5).rgb;
+    _SH[6] = texelFetch(btex, offset+6).rgb;
+    _SH[7] = texelFetch(btex, offset+7).rgb;
+    _SH[8] = texelFetch(btex, offset+8).rgb;
+}    
+""".trimIndent()
+
+
+fun glslGatherSH(xProbes: Int, yProbes: Int, zProbes: Int, spacing:Double = 1.0) = """
+ivec3 gridCoordinates(vec3 p, out vec3 f) {
+    float x = p.x / $spacing;
+    float y = p.y / $spacing;
+    float z = p.z / $spacing;
+                  
+    int ix = int(floor(x)) + $xProbes / 2;
+    int iy = int(floor(y)) + $yProbes / 2;
+    int iz = int(floor(z)) + $zProbes / 2;
+
+    f.x = fract((x));
+    f.y = fract((y));
+    f.z = fract((z));
+                           
+    return ivec3(ix, iy, iz);                                  
+}
+
+int gridIndex(ivec3 p) {
+    ivec3 c = clamp(p, ivec3(0), ivec3(${xProbes-1}, ${yProbes-1}, ${zProbes-1}));
+    return c.x + c.y * $xProbes + c.z * ${xProbes * yProbes};
+}
+    
+void gatherSH(samplerBuffer btex, vec3 p, out vec3[9] blend) {
+    vec3[9] c000;
+    vec3[9] c001;
+    vec3[9] c010;
+    vec3[9] c011;
+    vec3[9] c100;
+    vec3[9] c101;
+    vec3[9] c110;
+    vec3[9] c111;
+    
+    vec3 f;
+    ivec3 io = gridCoordinates(p, f);
+    
+    fetchSH(btex, gridIndex(io + ivec3(0,0,0)), c000);        
+    fetchSH(btex, gridIndex(io + ivec3(0,0,1)), c001);
+    fetchSH(btex, gridIndex(io + ivec3(0,1,0)), c010);        
+    fetchSH(btex, gridIndex(io + ivec3(0,1,1)), c011);
+    fetchSH(btex, gridIndex(io + ivec3(1,0,0)), c100);        
+    fetchSH(btex, gridIndex(io + ivec3(1,0,1)), c101);
+    fetchSH(btex, gridIndex(io + ivec3(1,1,0)), c110);        
+    fetchSH(btex, gridIndex(io + ivec3(1,1,1)), c111);
+    
+    
+    for (int i = 0; i < 9; ++i) {
+        blend[i] =  mix( mix( mix(c000[i], c001[i], f.z), mix(c010[i], c011[i], f.z), f.y), mix( mix(c100[i], c101[i], f.z), mix(c110[i], c111[i], f.z), f.y), f.x);       
+    }
+              
+}
+    
+    
+""".trimIndent()

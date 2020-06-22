@@ -4,8 +4,14 @@ import org.openrndr.color.ColorRGBa
 import org.openrndr.draw.*
 import org.openrndr.extra.dnk3.cubemap.CubemapPassthrough
 import org.openrndr.extra.dnk3.cubemap.IrradianceConvolution
+import org.openrndr.extra.dnk3.cubemap.evaluateSHIrradiance
+import org.openrndr.extra.dnk3.cubemap.irradianceCoefficients
 import org.openrndr.extra.fx.blur.ApproximateGaussianBlur
 import org.openrndr.math.Matrix44
+import org.openrndr.math.Vector3
+import java.io.File
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 class SceneRenderer {
 
@@ -26,11 +32,13 @@ class SceneRenderer {
     var cubemapDepthBuffer = depthBuffer(256, 256, DepthFormat.DEPTH16, BufferMultisample.Disabled)
 
 
-    val tempCubemap = cubemap(256)
+    val tempCubemap = cubemap(256, format = ColorFormat.RGB, type = ColorType.FLOAT32)
     val filteredCubemap = cubemap(256)
 
 
     var irradianceArrayCubemap: ArrayCubemap? = null
+    var irradianceSHMap: BufferTexture? = null
+
 
     var outputPasses = mutableListOf(DefaultOpaquePass, DefaultTransparentPass)
     var outputPassTarget: RenderTarget? = null
@@ -120,42 +128,65 @@ class SceneRenderer {
             }
             var probeID = 0
 
-            for ((node, probe) in irradianceProbes) {
+            if (irradianceSHMap == null) {
+                irradianceSHMap = bufferTexture(irradianceProbes.size * 9, format = ColorFormat.RGB, type = ColorType.FLOAT32)
+                val buffer = ByteBuffer.allocateDirect(irradianceProbePositions.size * 9 * 3 * 4)
+                buffer.order(ByteOrder.nativeOrder())
 
-                if (probe.dirty) {
-                    println("rendering probe")
-                    val pass = IrradianceProbePass
-                    val materialContext = MaterialContext(pass, lights, fogs, shadowLightTargets, emptyMap(), 0)
-                    val position = node.worldPosition
 
-                    for (side in CubemapSide.values()) {
-                        val target = renderTarget(256, 256) {
-                            this.arrayCubemap(irradianceArrayCubemap!!, side, probeID )
-                            this.depthBuffer(cubemapDepthBuffer)
+                for ((node, probe) in irradianceProbes) {
+                    if (probe.dirty) {
+                        println("rendering probe")
+                        val pass = IrradianceProbePass
+                        val materialContext = MaterialContext(pass, lights, fogs, shadowLightTargets, emptyMap(), 0)
+                        val position = node.worldPosition
+
+                        for (side in CubemapSide.values()) {
+                            val target = renderTarget(256, 256) {
+                                this.arrayCubemap(irradianceArrayCubemap!!, side, probeID)
+                                this.depthBuffer(cubemapDepthBuffer)
+                            }
+                            drawer.isolatedWithTarget(target) {
+                                drawer.clear(ColorRGBa.BLACK)
+                                //drawer.perspective(90.0, 1.0, 0.1, 100.0)
+                                drawer.projection = probe.projectionMatrix
+                                drawer.view = Matrix44.IDENTITY
+                                drawer.model = Matrix44.IDENTITY
+                                drawer.lookAt(position, position + side.forward, side.up)
+                                drawPass(drawer, pass, materialContext, meshes, instancedMeshes, skinnedMeshes)
+                            }
+
+                            target.detachDepthBuffer()
+                            target.detachColorBuffers()
+                            target.destroy()
                         }
-                        drawer.isolatedWithTarget(target) {
-                            drawer.clear(ColorRGBa.BLACK)
-                            //drawer.perspective(90.0, 1.0, 0.1, 100.0)
-                            drawer.projection = probe.projectionMatrix
-                            drawer.view = Matrix44.IDENTITY
-                            drawer.model = Matrix44.IDENTITY
-                            drawer.lookAt(position, position + side.forward, side.up)
-                            drawPass(drawer, pass, materialContext, meshes, instancedMeshes, skinnedMeshes)
+
+                        irradianceArrayCubemap!!.copyTo(probeID, tempCubemap)
+
+                        val coefficients = tempCubemap.irradianceCoefficients()
+                        for (coef in coefficients) {
+                            buffer.putVector3((coef))
                         }
 
-                        target.detachDepthBuffer()
-                        target.detachColorBuffers()
-                        target.destroy()
+
+                        val out = evaluateSHIrradiance(Vector3.Companion.UNIT_Y, coefficients)
+                        println(out)
+
+                        println(coefficients.joinToString(", "))
+//                    irradianceConvolution.apply(tempCubemap, filteredCubemap)
+////                    passthrough.apply(tempCubemap, filteredCubemap)
+//                    filteredCubemap.copyTo(irradianceArrayCubemap!!, probeID)
+
+
+                        probeID++
+                        probe.dirty = false
                     }
-
-                    irradianceArrayCubemap!!.copyTo(probeID, tempCubemap)
-                    irradianceConvolution.apply(tempCubemap, filteredCubemap)
-//                    passthrough.apply(tempCubemap, filteredCubemap)
-                    filteredCubemap.copyTo(irradianceArrayCubemap!!, probeID)
-
-
-                    probeID++
-                    probe.dirty = false
+                }
+                irradianceSHMap?.let {
+                    buffer.rewind()
+                    it.write(buffer)
+                    it.saveToFile(File("boo.orb"))
+                    irradianceSHMap = loadBufferTexture("boo.orb")
                 }
             }
         }
@@ -166,6 +197,7 @@ class SceneRenderer {
                 val materialContext = MaterialContext(pass, lights, fogs, shadowLightTargets, meshCubemaps, irradianceProbes.size)
                 materialContext.irradianceArrayCubemap = irradianceArrayCubemap
                 materialContext.irradianceProbePositions = irradianceProbePositions
+                materialContext.irradianceSHMap = irradianceSHMap
 
                 val defaultPasses = setOf(DefaultTransparentPass, DefaultOpaquePass)
 
@@ -359,4 +391,10 @@ fun sceneRenderer(builder: SceneRenderer.() -> Unit): SceneRenderer {
     val sceneRenderer = SceneRenderer()
     sceneRenderer.builder()
     return sceneRenderer
+}
+
+private fun ByteBuffer.putVector3(v: Vector3) {
+    putFloat(v.x.toFloat())
+    putFloat(v.y.toFloat())
+    putFloat(v.z.toFloat())
 }

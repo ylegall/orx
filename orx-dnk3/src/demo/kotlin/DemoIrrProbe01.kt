@@ -10,6 +10,7 @@ import org.openrndr.extra.dnk3.gltf.loadGltfFromFile
 import org.openrndr.extra.dnk3.materials.IrradianceDebugMaterial
 import org.openrndr.extras.camera.Orbital
 import org.openrndr.extras.meshgenerators.boxMesh
+import org.openrndr.extras.meshgenerators.sphereMesh
 import org.openrndr.ffmpeg.ScreenRecorder
 import org.openrndr.math.*
 import org.openrndr.math.transforms.transform
@@ -42,7 +43,7 @@ fun main() = application {
         val gltf = loadGltfFromFile(File("demo-data/gltf-models/irradiance-probes/model.glb"))
         val scene = Scene(SceneNode())
 
-        val probeBox = boxMesh(0.1, 0.1, 0.1)
+        val probeBox = sphereMesh(16,16, 0.1)
         val probeGeometry = Geometry(listOf(probeBox), null, DrawPrimitive.TRIANGLES, 0, probeBox.vertexCount)
 
         var probeID = 0
@@ -66,9 +67,6 @@ fun main() = application {
             }
         }
 
-
-
-
         val sceneData = gltf.buildSceneNodes()
         scene.root.children.addAll(sceneData.scenes.first())
 
@@ -80,7 +78,6 @@ fun main() = application {
 
         val cubemap = cubemap(256, ColorFormat.RGBa, ColorType.UINT8, 1, Session.active)
 
-
         val sides = CubemapSide.values().map { cubemap.side(it) }
         val side = colorBuffer(256, 256)
 
@@ -89,15 +86,12 @@ fun main() = application {
         extend(ScreenRecorder())
         extend {
 
-
-
 //            sceneData.animations[0].applyToTargets(seconds.mod_(sceneData.animations[0].duration))
             drawer.clear(ColorRGBa.BLACK)
             renderer.draw(drawer, scene)
 
             drawer.defaults()
             renderer.irradianceArrayCubemap!!.copyTo(layerIndex, cubemap)
-
 
 //            for (i in 0 until 6) {
 //                sides[i].copyTo(side)
