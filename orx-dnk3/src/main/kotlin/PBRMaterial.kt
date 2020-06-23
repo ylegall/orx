@@ -453,7 +453,7 @@ class PBRMaterial : Material {
                 }
             }.joinToString("\n")}
 
-        ${if (materialContext.irradianceSHMap != null) """
+        ${if (materialContext.irradianceSH?.shMap != null) """
                                 vec3[9] sh;
                     gatherSH(p_shMap, v_worldPosition, sh);
                 f_diffuse.rgb = clamp(evaluateSH(normalize(v_worldNormal), sh), vec3(0.0), vec3(1.0)) * m_color.rgb;
@@ -484,11 +484,12 @@ class PBRMaterial : Material {
                      ${(this@PBRMaterial.vertexPreamble) ?: ""}
                 """.trimIndent()
                 fragmentPreamble += """
-                    ${if (materialContext.irradianceSHMap != null) {
+                    ${if (materialContext.irradianceSH?.shMap != null) {
                     """
                 $glslEvaluateSH
                 $glslFetchSH
-                ${glslGatherSH(7, 7, 7, 0.5)}
+                ${glslGatherSH(materialContext.irradianceSH!!.xCount, materialContext.irradianceSH!!.yCount,
+                    materialContext.irradianceSH!!.zCount, materialContext.irradianceSH!!.spacing)}
                 """
                 } else {
                     ""
@@ -535,11 +536,8 @@ class PBRMaterial : Material {
         shadeStyle.parameter("fragmentID", fragmentID)
 
         if (context.irradianceProbeCount > 0) {
-            shadeStyle.parameter("irradiance", context.irradianceArrayCubemap!!)
-            shadeStyle.parameter("irradianceProbePositions", context.irradianceProbePositions.toTypedArray())
-            shadeStyle.parameter("shMap", context.irradianceSHMap!!)
+            shadeStyle.parameter("shMap", context.irradianceSH?.shMap!!)
         }
-
 
         parameters.forEach { (k, v) ->
             when (v) {

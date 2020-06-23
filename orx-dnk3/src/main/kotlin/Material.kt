@@ -1,6 +1,7 @@
 package org.openrndr.extra.dnk3
 
 import org.openrndr.draw.*
+import org.openrndr.extra.dnk3.features.IrradianceSH
 import org.openrndr.math.Vector3
 
 interface Material {
@@ -43,9 +44,9 @@ data class MaterialContext(val pass: RenderPass,
                            val meshCubemaps: Map<Mesh, Cubemap>,
                            val irradianceProbeCount: Int
                            ) {
-    var irradianceArrayCubemap: ArrayCubemap? = null
-    var irradianceProbePositions: List<Vector3> = emptyList()
-    var irradianceSHMap: BufferTexture? = null
+
+    var irradianceSH: IrradianceSH? = null
+
 }
 
 

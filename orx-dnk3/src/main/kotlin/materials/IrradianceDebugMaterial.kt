@@ -13,18 +13,17 @@ class IrradianceDebugMaterial : Material {
     override var doubleSided: Boolean = false
     override var transparent: Boolean = false
     override val fragmentID: Int = 0
-    var irradianceProbeID = 0
 
     override fun generateShadeStyle(context: MaterialContext, primitiveContext: PrimitiveContext): ShadeStyle {
         return shadeStyle {
             fragmentPreamble = """
                 $glslEvaluateSH
                 $glslFetchSH
-                ${glslGatherSH(7, 7, 7, 0.5)}
+                ${glslGatherSH(context.irradianceSH!!.xCount, context.irradianceSH!!.yCount, context.irradianceSH!!.zCount, context.irradianceSH!!.spacing)}
                 vec3 f_emission = vec3(0.0);
-            """.trimIndent()
+            """
 
-            if (context.irradianceArrayCubemap != null) {
+            if (context.irradianceSH != null) {
                 fragmentTransform = """
                     vec3[9] sh;
                     gatherSH(p_shMap, v_worldPosition, sh);
@@ -40,12 +39,9 @@ class IrradianceDebugMaterial : Material {
     }
 
     override fun applyToShadeStyle(context: MaterialContext, shadeStyle: ShadeStyle) {
-        context.irradianceArrayCubemap?.let {
-            shadeStyle.parameter("irradianceMap", it)
-        }
-        context.irradianceSHMap?.let {
+        context.irradianceSH?.shMap?.let {
             shadeStyle.parameter("shMap", it)
         }
-        shadeStyle.parameter("irradianceProbeID", irradianceProbeID)
+
     }
 }

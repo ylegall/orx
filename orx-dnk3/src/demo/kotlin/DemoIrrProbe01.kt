@@ -6,6 +6,7 @@ import org.openrndr.color.ColorRGBa
 import org.openrndr.draw.*
 import org.openrndr.extensions.SingleScreenshot
 import org.openrndr.extra.dnk3.*
+import org.openrndr.extra.dnk3.features.addIrradianceSH
 import org.openrndr.extra.dnk3.gltf.buildSceneNodes
 import org.openrndr.extra.dnk3.gltf.loadGltfFromFile
 import org.openrndr.extra.dnk3.materials.IrradianceDebugMaterial
@@ -34,6 +35,8 @@ fun main() = application {
             }
         }
 
+        extend(ScreenRecorder())
+
         var layerIndex = 0
         keyboard.keyDown.listen {
             if (it.key == KEY_ARROW_RIGHT) {
@@ -44,34 +47,13 @@ fun main() = application {
             }
         }
 
-        val gltf = loadGltfFromFile(File("demo-data/gltf-models/irradiance-probes/model.glb"))
+        val gltf = loadGltfFromFile(File("demo-data/town-irr.glb"))
         val scene = Scene(SceneNode())
 
         val probeBox = sphereMesh(16,16, 0.1)
         val probeGeometry = Geometry(listOf(probeBox), null, DrawPrimitive.TRIANGLES, 0, probeBox.vertexCount)
 
-        var probeID = 0
-        for (k in -3 .. 3) {
-            for (j in -3 .. 3) {
-                for (i in -3 .. 3) {
-                    val spacing = 0.5
-                    val probeNode = SceneNode()
-
-                    probeNode.transform = transform {
-                        translate(i * spacing, j*spacing, k*spacing)
-                    }
-                    probeNode.entities.add(IrradianceProbe())
-                    val probeMaterial = IrradianceDebugMaterial().apply {
-                        this.irradianceProbeID = probeID
-                    }
-                    probeID++
-//                    val probePrimitive = MeshPrimitive(probeGeometry, probeMaterial)
-//                    val probeMesh = Mesh(listOf(probePrimitive))
-//                    probeNode.entities.add(probeMesh)
-                    scene.root.children.add(probeNode)
-                }
-            }
-        }
+        scene.addIrradianceSH(20, 20, 20, 2.5)
 
         val sceneData = gltf.buildSceneNodes()
         scene.root.children.addAll(sceneData.scenes.first())
@@ -118,21 +100,10 @@ fun main() = application {
 
         scene.root.children.add(dynNode)
 
-        extend(ScreenRecorder())
         extend {
-
-//            sceneData.animations[0].applyToTargets(seconds.mod_(sceneData.animations[0].duration))
             drawer.clear(ColorRGBa.BLACK)
             renderer.draw(drawer, scene)
-
             drawer.defaults()
-            renderer.irradianceArrayCubemap!!.copyTo(layerIndex, cubemap)
-
-//            for (i in 0 until 6) {
-//                sides[i].copyTo(side)
-//                drawer.image(side)
-//                drawer.translate(256.0, 0.0)
-//            }
         }
     }
 }
