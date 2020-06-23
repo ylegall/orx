@@ -159,11 +159,11 @@ void fetchSH(samplerBuffer btex, int probeID, out vec3[9] _SH) {
 """.trimIndent()
 
 
-fun glslGatherSH(xProbes: Int, yProbes: Int, zProbes: Int, spacing:Double = 1.0) = """
+fun glslGatherSH(xProbes: Int, yProbes: Int, zProbes: Int, spacing:Double = 1.0, offset: Vector3) = """
 ivec3 gridCoordinates(vec3 p, out vec3 f) {
-    float x = p.x / $spacing;
-    float y = p.y / $spacing;
-    float z = p.z / $spacing;
+    float x = (p.x - ${offset.x}) / $spacing;
+    float y = (p.y - ${offset.y})/ $spacing;
+    float z = (p.z - ${offset.z}) / $spacing;
                   
     int ix = int(floor(x)) + $xProbes / 2;
     int iy = int(floor(y)) + $yProbes / 2;

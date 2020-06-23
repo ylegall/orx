@@ -19,7 +19,7 @@ class IrradianceDebugMaterial : Material {
             fragmentPreamble = """
                 $glslEvaluateSH
                 $glslFetchSH
-                ${glslGatherSH(context.irradianceSH!!.xCount, context.irradianceSH!!.yCount, context.irradianceSH!!.zCount, context.irradianceSH!!.spacing)}
+                ${glslGatherSH(context.irradianceSH!!.xCount, context.irradianceSH!!.yCount, context.irradianceSH!!.zCount, context.irradianceSH!!.spacing, context.irradianceSH!!.offset)}
                 vec3 f_emission = vec3(0.0);
             """
 

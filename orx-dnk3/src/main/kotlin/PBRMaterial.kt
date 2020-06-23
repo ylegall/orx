@@ -386,6 +386,9 @@ class PBRMaterial : Material {
 
             val displacers = textures.filter { it.target is TextureTarget.Height }
 
+
+
+
             val skinVS = if (primitiveContext.hasSkinning) """
                     uvec4 j = a_joints;
                     mat4 skinTransform = p_jointTransforms[j.x] * a_weights.x 
@@ -414,15 +417,26 @@ class PBRMaterial : Material {
             }.joinToString("\n") else ""
 
             val lights = materialContext.lights
+
+            val doubleSidedFS = if (doubleSided) {
+                """
+                    
+                    if (dot(V, N) <0) {
+                        N *= -1.0;
+                    }
+                """.trimIndent()
+            } else ""
             val lightFS = if (needLight) """
         vec3 f_diffuse = vec3(0.0);
         vec3 f_specular = vec3(0.0);
         vec3 f_ambient = vec3(0.0);
         float f_occlusion = 1.0;
         vec3 N = normalize(f_worldNormal);
+        
         vec3 ep = (p_viewMatrixInverse * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
         vec3 Vr = ep - v_worldPosition;
         vec3 V = normalize(Vr);
+        $doubleSidedFS
         float NoV = ${if (primitiveContext.hasNormalAttribute) "abs(dot(N, V)) + 1e-5" else "1"};
 
         ${if (environmentMap && materialContext.meshCubemaps.isNotEmpty() && primitiveContext.hasNormalAttribute) """
@@ -446,11 +460,11 @@ class PBRMaterial : Material {
             }.joinToString("\n")}
 
         ${if (materialContext.irradianceSH?.shMap != null) """
-                                vec3[9] sh;
-                    gatherSH(p_shMap, v_worldPosition, sh);
-                f_diffuse.rgb = clamp(evaluateSH(normalize(v_worldNormal), sh), vec3(0.0), vec3(1.0)) * m_color.rgb;
+                vec3[9] sh;
+                gatherSH(p_shMap, v_worldPosition, sh);
+                f_diffuse.rgb = clamp(evaluateSH(N, sh), vec3(0.0), vec3(1.0)) * m_color.rgb;                    
+                f_diffuse.rgb += pow(smoothstep(1.0, 0.0, abs(dot(normalize(N),normalize(V)))),2.0) * clamp(evaluateSH(-V, sh), vec3(0.0), vec3(1.0));// * m_color.rgb;
                 f_ambient.rgb = vec3(0.0);
-                
         """.trimIndent() else ""
         }
         
@@ -480,7 +494,7 @@ class PBRMaterial : Material {
                 $glslEvaluateSH
                 $glslFetchSH
                 ${glslGatherSH(materialContext.irradianceSH!!.xCount, materialContext.irradianceSH!!.yCount,
-                    materialContext.irradianceSH!!.zCount, materialContext.irradianceSH!!.spacing)}
+                    materialContext.irradianceSH!!.zCount, materialContext.irradianceSH!!.spacing, materialContext.irradianceSH!!.offset)}
                 """
                 } else {
                     ""

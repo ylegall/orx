@@ -5,12 +5,13 @@ import org.openrndr.draw.*
 import org.openrndr.extra.dnk3.*
 import org.openrndr.extra.dnk3.cubemap.irradianceCoefficients
 import org.openrndr.math.Matrix44
+import org.openrndr.math.Vector3
 import org.openrndr.math.transforms.transform
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
-data class IrradianceSH(val xCount: Int, val yCount: Int, val zCount: Int, val spacing: Double) : Feature {
+data class IrradianceSH(val xCount: Int, val yCount: Int, val zCount: Int, val spacing: Double, val offset: Vector3) : Feature {
     override fun <T : Feature> update(drawer: Drawer, sceneRenderer: SceneRenderer, scene: Scene, feature: T, context: RenderContext) {
         sceneRenderer.processIrradiance(drawer, scene, feature as IrradianceSH, context)
     }
@@ -21,14 +22,15 @@ data class IrradianceSH(val xCount: Int, val yCount: Int, val zCount: Int, val s
 
 }
 
-fun Scene.addIrradianceSH(xCount: Int, yCount: Int, zCount: Int, spacing: Double) {
-    features.add(IrradianceSH(xCount * 2 + 1, yCount * 2 + 1, zCount * 2 + 1, spacing))
+fun Scene.addIrradianceSH(xCount: Int, yCount: Int, zCount: Int, spacing: Double, offset: Vector3 = Vector3.ZERO) {
+    features.add(IrradianceSH(xCount * 2 + 1, yCount * 2 + 1, zCount * 2 + 1, spacing, offset))
     var probeID = 0
     for (k in -zCount..zCount) {
         for (j in -yCount..yCount) {
             for (i in -xCount..xCount) {
                 val probeNode = SceneNode()
                 probeNode.transform = transform {
+                    translate(offset)
                     translate(i * spacing, j * spacing, k * spacing)
                 }
                 probeNode.entities.add(IrradianceProbe())

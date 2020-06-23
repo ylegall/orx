@@ -29,6 +29,7 @@ fun main() = application {
     }
 
     program {
+        extend(ScreenRecorder())
         if (System.getProperty("takeScreenshot") == "true") {
             extend(SingleScreenshot()) {
                 this.outputFile = System.getProperty("screenshotPath")
@@ -45,13 +46,13 @@ fun main() = application {
             }
         }
 
-        val gltf = loadGltfFromFile(File("demo-data/town-irr.glb"))
+        val gltf = loadGltfFromFile(File("demo-data/gltf-models/irradiance-probes/model.glb"))
         val scene = Scene(SceneNode())
 
         val probeBox = sphereMesh(16,16, 0.1)
         val probeGeometry = Geometry(listOf(probeBox), null, DrawPrimitive.TRIANGLES, 0, probeBox.vertexCount)
 
-        scene.addIrradianceSH(20, 20, 20, 2.5)
+        scene.addIrradianceSH(7, 7, 7, 0.75)
 
         val sceneData = gltf.buildSceneNodes()
         scene.root.children.addAll(sceneData.scenes.first())
@@ -61,10 +62,6 @@ fun main() = application {
         val orb = extend(Orbital()) {
             camera.setView(Vector3(-0.49, -0.24, 0.20), Spherical(26.56, 90.0, 6.533), 40.0)
         }
-
-
-
-        println("scene hash is: ${scene.hashCode()}")
 
         renderer.draw(drawer, scene)
 
