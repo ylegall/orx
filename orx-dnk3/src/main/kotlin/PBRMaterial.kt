@@ -10,9 +10,7 @@ import org.openrndr.math.Vector3
 import org.openrndr.math.Vector4
 import org.openrndr.math.transforms.normalMatrix
 import java.nio.ByteBuffer
-import javax.naming.Context
 import kotlin.math.cos
-
 
 private val noise128 by lazy {
     val cb = colorBuffer(128, 128)
@@ -349,9 +347,6 @@ class PBRMaterial : Material {
         val cached = shadeStyles.getOrPut(ContextKey(materialContext, primitiveContext)) {
             val needLight = needLight(materialContext)
             val preambleFS = """
-                
-                
-                
             vec4 m_color = p_color;
             uint f_fragmentID = uint(p_fragmentID);
             float m_f0 = 0.5;
@@ -363,9 +358,6 @@ class PBRMaterial : Material {
             vec4 f_fog = vec4(0.0, 0.0, 0.0, 0.0);
             vec3 f_worldNormal = v_worldNormal;
             vec3 f_emission = m_emission;
-            
-            
-
         """.trimIndent()
 
             val textureFs = if (needLight) {
@@ -460,7 +452,6 @@ class PBRMaterial : Material {
                 f_ambient.rgb = vec3(0.0);
                 
         """.trimIndent() else ""
-            
         }
         
         ${materialContext.fogs.mapIndexed { index, (node, fog) ->

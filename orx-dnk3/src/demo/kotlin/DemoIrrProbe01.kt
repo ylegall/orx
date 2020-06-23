@@ -35,8 +35,6 @@ fun main() = application {
             }
         }
 
-        extend(ScreenRecorder())
-
         var layerIndex = 0
         keyboard.keyDown.listen {
             if (it.key == KEY_ARROW_RIGHT) {
@@ -64,10 +62,7 @@ fun main() = application {
             camera.setView(Vector3(-0.49, -0.24, 0.20), Spherical(26.56, 90.0, 6.533), 40.0)
         }
 
-        val cubemap = cubemap(256, ColorFormat.RGBa, ColorType.UINT8, 1, Session.active)
 
-        val sides = CubemapSide.values().map { cubemap.side(it) }
-        val side = colorBuffer(256, 256)
 
         println("scene hash is: ${scene.hashCode()}")
 
@@ -82,22 +77,17 @@ fun main() = application {
                     val dynMesh = Mesh(listOf(dynPrimitive))
                     dynNode.entities.add(dynMesh)
 
-
-
         dynNode.entities.add(dynMesh)
 
         scene.dispatcher.launch {
             while(true) {
                 dynNode.transform = transform {
-
                     translate(cos(seconds)*0.5, 0.5, sin(seconds)*0.5)
                     scale(2.0)
                 }
                 yield()
             }
         }
-
-
         scene.root.children.add(dynNode)
 
         extend {
