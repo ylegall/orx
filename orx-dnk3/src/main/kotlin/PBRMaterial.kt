@@ -462,7 +462,7 @@ class PBRMaterial : Material {
         ${if (materialContext.irradianceSH?.shMap != null) """
                 vec3[9] sh;
                 gatherSH(p_shMap, v_worldPosition, sh);
-                f_diffuse.rgb = clamp(evaluateSH(N, sh), vec3(0.0), vec3(1.0)) * m_color.rgb;                    
+                f_diffuse.rgb += clamp(evaluateSH(N, sh), vec3(0.0), vec3(1.0)) * m_color.rgb;                    
                 f_diffuse.rgb += pow(smoothstep(1.0, 0.0, abs(dot(normalize(N),normalize(V)))),2.0) * clamp(evaluateSH(-V, sh), vec3(0.0), vec3(1.0));// * m_color.rgb;
                 f_ambient.rgb = vec3(0.0);
         """.trimIndent() else ""

@@ -11,7 +11,7 @@ import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
-data class IrradianceSH(val xCount: Int, val yCount: Int, val zCount: Int, val spacing: Double, val offset: Vector3) : Feature {
+data class IrradianceSH(val xCount: Int, val yCount: Int, val zCount: Int, val spacing: Double, val offset: Vector3, val cubemapSize: Int) : Feature {
     override fun <T : Feature> update(drawer: Drawer, sceneRenderer: SceneRenderer, scene: Scene, feature: T, context: RenderContext) {
         sceneRenderer.processIrradiance(drawer, scene, feature as IrradianceSH, context)
     }
@@ -22,8 +22,14 @@ data class IrradianceSH(val xCount: Int, val yCount: Int, val zCount: Int, val s
 
 }
 
-fun Scene.addIrradianceSH(xCount: Int, yCount: Int, zCount: Int, spacing: Double, offset: Vector3 = Vector3.ZERO) {
-    features.add(IrradianceSH(xCount * 2 + 1, yCount * 2 + 1, zCount * 2 + 1, spacing, offset))
+fun Scene.addIrradianceSH(xCount: Int,
+                          yCount: Int,
+                          zCount: Int,
+                          spacing: Double,
+                          offset: Vector3 = Vector3.ZERO,
+                          cubemapSize: Int = 256
+) {
+    features.add(IrradianceSH(xCount * 2 + 1, yCount * 2 + 1, zCount * 2 + 1, spacing, offset, cubemapSize))
     var probeID = 0
     for (k in -zCount..zCount) {
         for (j in -yCount..yCount) {
@@ -52,8 +58,8 @@ fun SceneRenderer.processIrradiance(drawer: Drawer, scene: Scene, feature: Irrad
             feature.shMap = loadBufferTexture(cached)
         } else {
             var probeID = 0
-            val tempCubemap = cubemap(256, format = ColorFormat.RGB, type = ColorType.FLOAT32)
-            var cubemapDepthBuffer = depthBuffer(256, 256, DepthFormat.DEPTH16, BufferMultisample.Disabled)
+            val tempCubemap = cubemap(feature.cubemapSize, format = ColorFormat.RGB, type = ColorType.FLOAT32)
+            var cubemapDepthBuffer = depthBuffer(feature.cubemapSize, feature.cubemapSize, DepthFormat.DEPTH16, BufferMultisample.Disabled)
 
             feature.shMap = bufferTexture(irradianceProbes.size * 9, format = ColorFormat.RGB, type = ColorType.FLOAT32)
             val buffer = ByteBuffer.allocateDirect(irradianceProbePositions.size * 9 * 3 * 4)
@@ -66,7 +72,7 @@ fun SceneRenderer.processIrradiance(drawer: Drawer, scene: Scene, feature: Irrad
                     val position = node.worldPosition
 
                     for (side in CubemapSide.values()) {
-                        val target = renderTarget(256, 256) {
+                        val target = renderTarget(feature.cubemapSize, feature.cubemapSize) {
                             this.colorBuffer(tempCubemap.side(side))
                             this.depthBuffer(cubemapDepthBuffer)
                         }
