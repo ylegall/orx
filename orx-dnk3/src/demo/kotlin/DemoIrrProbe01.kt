@@ -45,8 +45,8 @@ fun main() = application {
             }
         }
 
-        //val gltf = loadGltfFromFile(File("demo-data/gltf-models/irradiance-probes/model.glb"))
-        val gltf = loadGltfFromFile(File("demo-data/town-irr.glb"))
+        val gltf = loadGltfFromFile(File("demo-data/gltf-models/irradiance-probes/facade.glb"))
+//        val gltf = loadGltfFromFile(File("demo-data/town-irr.glb"))
         val scene = Scene(SceneNode())
 
         val probeBox = sphereMesh(16,16, 0.1)
@@ -87,7 +87,7 @@ fun main() = application {
                 yield()
             }
         }
-        scene.root.children.add(dynNode)
+//        scene.root.children.add(dynNode)
 
         extend {
             drawer.clear(ColorRGBa.BLACK)

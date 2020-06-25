@@ -302,7 +302,28 @@ class Texture(var source: TextureSource,
 
 private var fragmentIDCounter = 1
 
+data class SubsurfaceScatter(var enabled: Boolean) {
+    var color: ColorRGBa = ColorRGBa.WHITE
+    var shape = 1.0
+
+    fun fs(): String {
+        return if (enabled) """
+            f_diffuse.rgb += pow(smoothstep(1.0, 0.0, abs(dot(normalize(N),normalize(V)))), p_sssShape) * clamp(evaluateSH(-V, sh), vec3(0.0), vec3(1.0)) * p_sssColor;            
+        """ else ""
+    }
+
+    fun applyToShadeStyle(shadeStyle: ShadeStyle) {
+        if (enabled) {
+            shadeStyle.parameter("sssColor", color)
+            shadeStyle.parameter("sssShape", shape)
+        }
+    }
+
+}
+
+
 class PBRMaterial : Material {
+    override var name: String? = null
     override fun toString(): String {
         return "PBRMaterial(fragmentID: $fragmentID, doubleSided: $doubleSided, textures: $textures, color: $color, metalness: $metalness, roughness: $roughness, emissive: $emission))"
     }
@@ -320,6 +341,9 @@ class PBRMaterial : Material {
     var roughness = 1.0
     var emission = ColorRGBa.BLACK
 
+    var subsurfaceScatter = SubsurfaceScatter(false)
+
+
     var fragmentPreamble: String? = null
     var vertexPreamble: String? = null
     var vertexTransform: String? = null
@@ -327,21 +351,6 @@ class PBRMaterial : Material {
     var textures = mutableListOf<Texture>()
 
     val shadeStyles = mutableMapOf<ContextKey, ShadeStyle>()
-
-//    fun copy(): PBRMaterial {
-//        val copied = PBRMaterial()
-//        copied.environmentMap = environmentMap
-//        copied.color = color
-//        copied.opacity = opacity
-//        copied.metalness = metalness
-//        copied.roughness = roughness
-//        copied.emission = emission
-//        copied.vertexPreamble = vertexPreamble
-//        copied.vertexTransform = vertexTransform
-//        copied.parameters.putAll(parameters)
-//        copied.textures.addAll(textures.map { it.copy() })
-//        return copied
-//    }
 
     override fun generateShadeStyle(materialContext: MaterialContext, primitiveContext: PrimitiveContext): ShadeStyle {
         val cached = shadeStyles.getOrPut(ContextKey(materialContext, primitiveContext)) {
@@ -385,8 +394,6 @@ class PBRMaterial : Material {
             } else ""
 
             val displacers = textures.filter { it.target is TextureTarget.Height }
-
-
 
 
             val skinVS = if (primitiveContext.hasSkinning) """
@@ -462,11 +469,11 @@ class PBRMaterial : Material {
         ${if (materialContext.irradianceSH?.shMap != null) """
                 vec3[9] sh;
                 gatherSH(p_shMap, v_worldPosition, sh);
-                f_diffuse.rgb += clamp(evaluateSH(N, sh), vec3(0.0), vec3(1.0)) * m_color.rgb;                    
-                f_diffuse.rgb += pow(smoothstep(1.0, 0.0, abs(dot(normalize(N),normalize(V)))),2.0) * clamp(evaluateSH(-V, sh), vec3(0.0), vec3(1.0));// * m_color.rgb;
+                f_diffuse.rgb += clamp(evaluateSH(N, sh), vec3(0.0), vec3(1.0)) * m_color.rgb;        
                 f_ambient.rgb = vec3(0.0);
+                ${subsurfaceScatter.fs()}
         """.trimIndent() else ""
-        }
+            }
         
         ${materialContext.fogs.mapIndexed { index, (node, fog) ->
                 fog.fs(index)
@@ -494,7 +501,7 @@ class PBRMaterial : Material {
                 $glslEvaluateSH
                 $glslFetchSH
                 ${glslGatherSH(materialContext.irradianceSH!!.xCount, materialContext.irradianceSH!!.yCount,
-                    materialContext.irradianceSH!!.zCount, materialContext.irradianceSH!!.spacing, materialContext.irradianceSH!!.offset)}
+                            materialContext.irradianceSH!!.zCount, materialContext.irradianceSH!!.spacing, materialContext.irradianceSH!!.offset)}
                 """
                 } else {
                     ""
@@ -557,6 +564,9 @@ class PBRMaterial : Material {
             }
         }
         if (needLight(context)) {
+
+            subsurfaceScatter.applyToShadeStyle(shadeStyle)
+
             textures.forEachIndexed { index, texture ->
                 when (val source = texture.source) {
                     is TextureFromColorBuffer -> {

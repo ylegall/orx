@@ -10,6 +10,8 @@ import org.openrndr.extra.dnk3.cubemap.glslFetchSH
 import org.openrndr.extra.dnk3.cubemap.glslGatherSH
 
 class IrradianceDebugMaterial : Material {
+    override val name: String? = null
+
     override var doubleSided: Boolean = false
     override var transparent: Boolean = false
     override val fragmentID: Int = 0
