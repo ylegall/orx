@@ -87,7 +87,9 @@ fun GltfFile.buildSceneNodes(): GltfSceneData {
                     require(localBufferView.byteLength != null)
                     localBuffer.position(localBufferView.byteOffset)
                     localBuffer.limit(localBufferView.byteOffset + localBufferView.byteLength)
-                    ColorBuffer.fromBuffer(localBuffer)
+                    val cb = ColorBuffer.fromBuffer(localBuffer)
+                    localBuffer.limit(localBuffer.capacity())
+                    cb
                 } ?: error("no uri and no bufferview")
 
             } else {
