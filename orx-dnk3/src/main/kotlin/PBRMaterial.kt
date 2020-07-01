@@ -492,7 +492,7 @@ class PBRMaterial : Material {
                     if (rt is ProgramRenderTarget || materialContext.pass === DefaultPass || materialContext.pass === DefaultOpaquePass || materialContext.pass == DefaultTransparentPass || materialContext.pass == IrradianceProbePass) {
                         this.output(it.targetOutput, ShadeStyleOutput(0))
                     } else {
-                        val index = rt.colorAttachmentIndexByName(it.targetOutput) ?: error("no such attachment ${it.targetOutput}")
+                        val index = rt.colorAttachmentIndexByName(it.targetOutput)?:error("attachment ${it.targetOutput} not found")
                         val type = rt.colorBuffer(index).type
                         val format = rt.colorBuffer(index).format
                         this.output(it.targetOutput, ShadeStyleOutput(index, format, type))
