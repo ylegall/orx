@@ -4,6 +4,7 @@ package org.openrndr.extra.shaderphrases.phrases
 
 import org.openrndr.extra.shaderphrases.annotations.ShaderPhrases
 
+
 /**
  * phrase for conversion from view to projection depth
  * @param viewDepth depth in view space ([0.0 .. -far])
@@ -19,7 +20,7 @@ float viewToProjectionDepth(float viewDepth, mat4 projection) {
 """
 
 /**
- * phrase for conversion from view to projection depth
+ * phrase for conversion from projection to view depth
  * @param projectionDepth depth in projection space ([0.0 .. 1.0])
  * @param projectionInversed inverse of the projection matrix
  * @return depth in view space ([0.0 .. -far]]
@@ -30,4 +31,12 @@ float projectionToViewDepth(float projectionDepth, mat4 projectionInverse) {
     float w = projectionDepth * projectionInverse[2].w + projectionInverse[3].w;
     return z / w;
 }
+"""
+
+const val projectionToViewCoordinate = """
+vec3 projectionToViewCoordinate(vec2 uv, float projectionDepth, mat4 projectionInverse) {
+    vec4 projectionCoordinate = vec4(uv * 2 0 - 1.0, projectionDepth, 1.0);
+    vec4 viewCoordinate = projectionInverse * projectionCoordinate;
+    return viewCoordinate.xyz / viewCoordinate.w;     
+}    
 """
