@@ -24,8 +24,6 @@ abstract class FacetCombiner(val facets: Set<FacetType>, val targetOutput: Strin
     override fun toString(): String {
         return "FacetCombiner(facets=$facets, targetOutput='$targetOutput')"
     }
-
-
 }
 
 abstract class ColorBufferFacetCombiner(facets: Set<FacetType>,
@@ -106,6 +104,14 @@ class PositionFacet : ColorBufferFacetCombiner(setOf(FacetType.WORLD_POSITION), 
 class NormalFacet : ColorBufferFacetCombiner(setOf(FacetType.WORLD_NORMAL), "normal", ColorFormat.RGB, ColorType.FLOAT16) {
     override fun generateShader(): String = "o_$targetOutput = vec4(v_worldNormal.rgb, 1.0);"
 }
+
+class ViewDepthFacet : ColorBufferFacetCombiner(setOf(FacetType.VIEW_POSITION), "viewDepth", ColorFormat.R, ColorType.FLOAT16) {
+    override fun generateShader(): String = "o_$targetOutput.r = v_viewPosition.z;"
+}
+class ClipDepthFacet : ColorBufferFacetCombiner(setOf(FacetType.CLIP_POSITION), "clipDepth", ColorFormat.R, ColorType.FLOAT16) {
+    override fun generateShader(): String = "o_$targetOutput.r = gl_FragCoord.z;"
+}
+
 
 class ViewPositionFacet : ColorBufferFacetCombiner(setOf(FacetType.VIEW_POSITION), "viewPosition", ColorFormat.RGB, ColorType.FLOAT32) {
     override fun generateShader(): String = "o_$targetOutput.rgb = v_viewPosition.rgb;"

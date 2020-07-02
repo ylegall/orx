@@ -4,15 +4,13 @@ import org.openrndr.color.ColorRGBa
 import org.openrndr.draw.*
 import org.openrndr.extra.dnk3.cubemap.glslEvaluateSH
 import org.openrndr.extra.dnk3.cubemap.glslFetchSH
-import org.openrndr.extra.dnk3.cubemap.glslGatherSH
+import org.openrndr.extra.dnk3.cubemap.genGlslGatherSH
 import org.openrndr.math.Vector2
 import org.openrndr.math.Vector3
 import org.openrndr.math.Vector4
 import org.openrndr.math.transforms.normalMatrix
 import java.nio.ByteBuffer
-import javax.naming.Context
 import kotlin.math.cos
-
 
 private val noise128 by lazy {
     val cb = colorBuffer(128, 128)
@@ -126,7 +124,11 @@ object DummySource : TextureSource() {
 
 abstract class TextureFromColorBuffer(var texture: ColorBuffer, var textureFunction: TextureFunction) : TextureSource()
 
-class TextureFromCode(val code: String) : TextureSource()
+class TextureFromCode(val code: String) : TextureSource() {
+    override fun hashCode(): Int {
+        return code.hashCode()
+    }
+}
 
 private fun TextureFromCode.fs(index: Int, target: TextureTarget) = """
 |vec4 tex$index = vec4(0.0, 0.0, 0.0, 1.0);
@@ -300,9 +302,30 @@ class Texture(var source: TextureSource,
 
 private var fragmentIDCounter = 1
 
+data class SubsurfaceScatter(var enabled: Boolean) {
+    var color: ColorRGBa = ColorRGBa.WHITE
+    var shape = 1.0
+
+    fun fs(): String {
+        return if (enabled) """
+            f_diffuse.rgb += pow(smoothstep(1.0, 0.0, abs(dot(normalize(N),normalize(V)))), p_sssShape) * clamp(evaluateSH(-V, sh), vec3(0.0), vec3(1.0)) * p_sssColor;            
+        """ else ""
+    }
+
+    fun applyToShadeStyle(shadeStyle: ShadeStyle) {
+        if (enabled) {
+            shadeStyle.parameter("sssColor", color)
+            shadeStyle.parameter("sssShape", shape)
+        }
+    }
+
+}
+
+
 class PBRMaterial : Material {
+    override var name: String? = null
     override fun toString(): String {
-        return "PBRMaterial(textures: $textures, color: $color, metalness: $metalness, roughness: $roughness, emissive: $emission))"
+        return "PBRMaterial(fragmentID: $fragmentID, doubleSided: $doubleSided, textures: $textures, color: $color, metalness: $metalness, roughness: $roughness, emissive: $emission))"
     }
 
     override var fragmentID = fragmentIDCounter.apply {
@@ -318,6 +341,9 @@ class PBRMaterial : Material {
     var roughness = 1.0
     var emission = ColorRGBa.BLACK
 
+    var subsurfaceScatter = SubsurfaceScatter(false)
+
+
     var fragmentPreamble: String? = null
     var vertexPreamble: String? = null
     var vertexTransform: String? = null
@@ -325,21 +351,6 @@ class PBRMaterial : Material {
     var textures = mutableListOf<Texture>()
 
     val shadeStyles = mutableMapOf<ContextKey, ShadeStyle>()
-
-//    fun copy(): PBRMaterial {
-//        val copied = PBRMaterial()
-//        copied.environmentMap = environmentMap
-//        copied.color = color
-//        copied.opacity = opacity
-//        copied.metalness = metalness
-//        copied.roughness = roughness
-//        copied.emission = emission
-//        copied.vertexPreamble = vertexPreamble
-//        copied.vertexTransform = vertexTransform
-//        copied.parameters.putAll(parameters)
-//        copied.textures.addAll(textures.map { it.copy() })
-//        return copied
-//    }
 
     override fun generateShadeStyle(materialContext: MaterialContext, primitiveContext: PrimitiveContext): ShadeStyle {
         val cached = shadeStyles.getOrPut(ContextKey(materialContext, primitiveContext)) {
@@ -356,18 +367,6 @@ class PBRMaterial : Material {
             vec4 f_fog = vec4(0.0, 0.0, 0.0, 0.0);
             vec3 f_worldNormal = v_worldNormal;
             vec3 f_emission = m_emission;
-            
-            ${if (materialContext.irradianceSHMap != null) {
-                """
-                $glslEvaluateSH
-                $glslFetchSH
-                ${glslGatherSH(3, 3, 3, 1.0)}
-                """
-            } else {
-                "" 
-            }
-            }
-
         """.trimIndent()
 
             val textureFs = if (needLight) {
@@ -395,6 +394,7 @@ class PBRMaterial : Material {
             } else ""
 
             val displacers = textures.filter { it.target is TextureTarget.Height }
+
 
             val skinVS = if (primitiveContext.hasSkinning) """
                     uvec4 j = a_joints;
@@ -424,15 +424,26 @@ class PBRMaterial : Material {
             }.joinToString("\n") else ""
 
             val lights = materialContext.lights
+
+            val doubleSidedFS = if (doubleSided) {
+                """
+                    
+                    if (dot(V, N) <0) {
+                        N *= -1.0;
+                    }
+                """.trimIndent()
+            } else ""
             val lightFS = if (needLight) """
         vec3 f_diffuse = vec3(0.0);
         vec3 f_specular = vec3(0.0);
         vec3 f_ambient = vec3(0.0);
         float f_occlusion = 1.0;
         vec3 N = normalize(f_worldNormal);
+        
         vec3 ep = (p_viewMatrixInverse * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
         vec3 Vr = ep - v_worldPosition;
         vec3 V = normalize(Vr);
+        $doubleSidedFS
         float NoV = ${if (primitiveContext.hasNormalAttribute) "abs(dot(N, V)) + 1e-5" else "1"};
 
         ${if (environmentMap && materialContext.meshCubemaps.isNotEmpty() && primitiveContext.hasNormalAttribute) """
@@ -455,6 +466,14 @@ class PBRMaterial : Material {
                 }
             }.joinToString("\n")}
 
+        ${if (materialContext.irradianceSH?.shMap != null) """
+                vec3[9] sh;
+                gatherSH(p_shMap, v_worldPosition, sh);
+                f_diffuse.rgb += clamp(evaluateSH(N, sh), vec3(0.0), vec3(1.0)) * m_color.rgb;        
+                f_ambient.rgb = vec3(0.0);
+                ${subsurfaceScatter.fs()}
+        """.trimIndent() else ""
+            }
         
         ${materialContext.fogs.mapIndexed { index, (node, fog) ->
                 fog.fs(index)
@@ -477,6 +496,17 @@ class PBRMaterial : Material {
                      ${(this@PBRMaterial.vertexPreamble) ?: ""}
                 """.trimIndent()
                 fragmentPreamble += """
+                    ${if (materialContext.irradianceSH?.shMap != null) {
+                    """
+                $glslEvaluateSH
+                $glslFetchSH
+                ${genGlslGatherSH(materialContext.irradianceSH!!.xCount, materialContext.irradianceSH!!.yCount,
+                            materialContext.irradianceSH!!.zCount, materialContext.irradianceSH!!.spacing, materialContext.irradianceSH!!.offset)}
+                """
+                } else {
+                    ""
+                }
+                }
             |$shaderLinePlaneIntersect
             |$shaderProjectOnPlane
             |$shaderSideOfPlane
@@ -518,10 +548,8 @@ class PBRMaterial : Material {
         shadeStyle.parameter("fragmentID", fragmentID)
 
         if (context.irradianceProbeCount > 0) {
-            shadeStyle.parameter("irradiance", context.irradianceArrayCubemap!!)
-            shadeStyle.parameter("irradianceProbePositions", context.irradianceProbePositions.toTypedArray())
+            shadeStyle.parameter("shMap", context.irradianceSH?.shMap!!)
         }
-
 
         parameters.forEach { (k, v) ->
             when (v) {
@@ -536,6 +564,9 @@ class PBRMaterial : Material {
             }
         }
         if (needLight(context)) {
+
+            subsurfaceScatter.applyToShadeStyle(shadeStyle)
+
             textures.forEachIndexed { index, texture ->
                 when (val source = texture.source) {
                     is TextureFromColorBuffer -> {
@@ -652,10 +683,9 @@ class PBRMaterial : Material {
         }
     }
 
-
     override fun hashCode(): Int {
-        var result = fragmentID
-        result = 31 * result + doubleSided.hashCode()
+        var result = fragmentID.hashCode()
+        result = 31 * doubleSided.hashCode()
         result = 31 * result + transparent.hashCode()
 //        result = 31 * result + environmentMap.hashCode()
         result = 31 * result + color.hashCode()
@@ -670,7 +700,5 @@ class PBRMaterial : Material {
 //        result = 31 * result + shadeStyles.hashCode()
         return result
     }
-
-
 }
 

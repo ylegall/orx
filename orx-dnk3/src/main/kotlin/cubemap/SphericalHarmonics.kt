@@ -1,6 +1,9 @@
+
 package org.openrndr.extra.dnk3.cubemap
 
 import org.openrndr.draw.*
+import org.openrndr.extra.shaderphrases.annotations.ShaderPhrases
+import org.openrndr.extra.shaderphrases.phraseResource
 import org.openrndr.math.Vector3
 import org.openrndr.math.max
 import org.openrndr.resourceUrl
@@ -122,48 +125,15 @@ fun evaluateSHIrradiance(direction: Vector3, _SH: Array<Vector3>): Vector3 {
                     + (_SH[3] * x + _SH[1] * y + _SH[2] * z) * c2 * 2.0);    // 2.c2.(L11.x + L1-1.y + L10.z)
 }
 
-val glslEvaluateSH = """
-vec3 evaluateSH(vec3 direction, vec3[9] _SH) {
-    const float c1 = 0.42904276540489171563379376569857;    // 4 * Â2.Y22 = 1/4 * sqrt(15.PI)
-    const float c2 = 0.51166335397324424423977581244463;    // 0.5 * Â1.Y10 = 1/2 * sqrt(PI/3)
-    const float c3 = 0.24770795610037568833406429782001;    // Â2.Y20 = 1/16 * sqrt(5.PI)
-    const float c4 = 0.88622692545275801364908374167057;    // Â0.Y00 = 1/2 * sqrt(PI)
-    
-    float x = direction.x;
-    float y = direction.y;
-    float z = direction.z;
-    
-    return max(vec3(0.0),
-            _SH[8] * (c1 * (x * x - y * y))                       // c1.L22.(x²-y²)
-                    + _SH[6] * (c3 * (3.0 * z * z - 1))                   // c3.L20.(3.z² - 1)
-                    + _SH[0] * c4                                   // c4.L00
-                    + (_SH[4] * x * y + _SH[7] * x * z + _SH[5] * y * z) * 2.0 * c1 // 2.c1.(L2-2.xy + L21.xz + L2-1.yz)
-                    + (_SH[3] * x + _SH[1] * y + _SH[2] * z) * c2 * 2.0);    // 2.c2.(L11.x + L1-1.y + L10.z) 
-}
-""".trimIndent()
+val glslEvaluateSH: String by phraseResource("/phrases/irradiance-sh.frag")
 
-val glslFetchSH = """
-// --  glslFetchSH     
-void fetchSH(samplerBuffer btex, int probeID, out vec3[9] _SH) {
-    int offset = probeID * 9;
-    _SH[0] = texelFetch(btex, offset).rgb;
-    _SH[1] = texelFetch(btex, offset+1).rgb;
-    _SH[2] = texelFetch(btex, offset+2).rgb;
-    _SH[3] = texelFetch(btex, offset+3).rgb;
-    _SH[4] = texelFetch(btex, offset+4).rgb;
-    _SH[5] = texelFetch(btex, offset+5).rgb;
-    _SH[6] = texelFetch(btex, offset+6).rgb;
-    _SH[7] = texelFetch(btex, offset+7).rgb;
-    _SH[8] = texelFetch(btex, offset+8).rgb;
-}    
-""".trimIndent()
+val glslFetchSH: String by phraseResource("/phrases/fetch-sh.frag")
 
-
-fun glslGatherSH(xProbes: Int, yProbes: Int, zProbes: Int, spacing:Double = 1.0) = """
+fun genGlslGatherSH(xProbes: Int, yProbes: Int, zProbes: Int, spacing: Double = 1.0, offset: Vector3) = """
 ivec3 gridCoordinates(vec3 p, out vec3 f) {
-    float x = p.x / $spacing;
-    float y = p.y / $spacing;
-    float z = p.z / $spacing;
+    float x = (p.x - ${offset.x}) / $spacing;
+    float y = (p.y - ${offset.y})/ $spacing;
+    float z = (p.z - ${offset.z}) / $spacing;
                   
     int ix = int(floor(x)) + $xProbes / 2;
     int iy = int(floor(y)) + $yProbes / 2;
@@ -177,7 +147,7 @@ ivec3 gridCoordinates(vec3 p, out vec3 f) {
 }
 
 int gridIndex(ivec3 p) {
-    ivec3 c = clamp(p, ivec3(0), ivec3(${xProbes-1}, ${yProbes-1}, ${zProbes-1}));
+    ivec3 c = clamp(p, ivec3(0), ivec3(${xProbes - 1}, ${yProbes - 1}, ${zProbes - 1}));
     return c.x + c.y * $xProbes + c.z * ${xProbes * yProbes};
 }
     
@@ -203,12 +173,12 @@ void gatherSH(samplerBuffer btex, vec3 p, out vec3[9] blend) {
     fetchSH(btex, gridIndex(io + ivec3(1,1,0)), c110);        
     fetchSH(btex, gridIndex(io + ivec3(1,1,1)), c111);
     
-    
     for (int i = 0; i < 9; ++i) {
         blend[i] =  mix( mix( mix(c000[i], c001[i], f.z), mix(c010[i], c011[i], f.z), f.y), mix( mix(c100[i], c101[i], f.z), mix(c110[i], c111[i], f.z), f.y), f.x);       
     }
-              
 }
-    
-    
 """.trimIndent()
+
+val glslGridCoordinates: String by phraseResource(resourceUrl("/phrases/irradiance-sh/grid-coordinates.frag"))
+val glslGridIndex: String by phraseResource(resourceUrl("/phrases/irradiance-sh/grid-index.frag"))
+val glslGatherSH: String by phraseResource(resourceUrl("/phrases/irradiance-sh/gather-sh"))

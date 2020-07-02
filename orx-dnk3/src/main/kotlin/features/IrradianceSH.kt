@@ -86,7 +86,7 @@ fun SceneRenderer.processIrradiance(drawer: Drawer, scene: Scene, feature: Irrad
                         }
 
                         target.detachDepthBuffer()
-                        target.detachColorBuffers()
+                        target.detachColorAttachments()
                         target.destroy()
                     }
                     val coefficients = tempCubemap.irradianceCoefficients()
