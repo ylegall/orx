@@ -15,7 +15,13 @@ class Geometry(val vertexBuffers: List<VertexBuffer>,
     override fun toString(): String {
         return "Geometry(vertexBuffers: $vertexBuffers, indexBuffers: $indexBuffer, primitive: $primitive, offset: $offset, vertexCount: $vertexCount)"
     }
-
+    override fun hashCode(): Int {
+        var result = 0
+        result = 31 * result + primitive.ordinal.hashCode()
+        result = 31 * result + offset.hashCode()
+        result = 31 * result + vertexCount.hashCode()
+        return result
+    }
 }
 
 val DummyGeometry = Geometry(emptyList(), null, DrawPrimitive.TRIANGLES, 0, 0)

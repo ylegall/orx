@@ -18,6 +18,7 @@ import org.openrndr.extras.camera.Orbital
 import org.openrndr.extras.meshgenerators.boxMesh
 import org.openrndr.extras.meshgenerators.sphereMesh
 import org.openrndr.ffmpeg.ScreenRecorder
+import org.openrndr.filter.color.Delinearize
 import org.openrndr.math.*
 import org.openrndr.math.transforms.transform
 import java.io.File
@@ -79,6 +80,11 @@ fun main() = application {
                     this.projectionMatrixInverse = drawer.projection.inversed
                     this.viewMatrixInverse = drawer.view.inversed
                 }
+        )
+
+        renderer.postSteps.add(
+                FilterPostStep(1.0, Delinearize(), listOf("volumetric-irradiance"), "ldr", ColorFormat.RGB, ColorType.FLOAT16)
+
         )
 
         val orb = extend(Orbital()) {

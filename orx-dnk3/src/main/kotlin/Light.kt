@@ -64,7 +64,7 @@ class HemisphereLight(var direction: Vector3 = Vector3.UNIT_Y,
 
 class PointLight(var constantAttenuation: Double = 1.0,
                  var linearAttenuation: Double = 0.0,
-                 var quadraticAttenuation: Double = 0.0) : Light() {
+                 var quadraticAttenuation: Double = 1.0) : Light() {
     override fun hashCode(): Int {
         var result = constantAttenuation.hashCode()
         result = 31 * result + linearAttenuation.hashCode()
