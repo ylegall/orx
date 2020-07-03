@@ -16,19 +16,7 @@ fun postRenderer(multisample: BufferMultisample = BufferMultisample.Disabled): S
                     multisample = multisample
             )
     )
-    sr.postSteps.add(
-            FilterPostStep(1.0,
-                    when (multisample) {
-                        BufferMultisample.Disabled -> SegmentContours()
-                        BufferMultisample.SampleCount(8) -> SegmentContoursMSAA8()
-                        else -> error("unsupported multisampling mode $multisample")
-                    },
-                    listOf("fragmentID"),
-                    "segments",
-                    ColorFormat.RGB,
-                    ColorType.UINT8
-            )
-    )
+
     sr.drawFinalBuffer = true
     return sr
 }

@@ -1,3 +1,4 @@
+@file:ShaderPhrases([])
 
 package org.openrndr.extra.dnk3.cubemap
 
@@ -125,9 +126,10 @@ fun evaluateSHIrradiance(direction: Vector3, _SH: Array<Vector3>): Vector3 {
                     + (_SH[3] * x + _SH[1] * y + _SH[2] * z) * c2 * 2.0);    // 2.c2.(L11.x + L1-1.y + L10.z)
 }
 
-val glslEvaluateSH: String by phraseResource("/phrases/irradiance-sh.frag")
+val glslEvaluateSH: String by phraseResource("/phrases/irradiance-sh/evaluate-sh.frag")
 
-val glslFetchSH: String by phraseResource("/phrases/fetch-sh.frag")
+val glslFetchSH: String by phraseResource("/phrases/irradiance-sh/fetch-sh.frag")
+val glslFetchSH0: String by phraseResource("/phrases/irradiance-sh/fetch-sh0.frag")
 
 fun genGlslGatherSH(xProbes: Int, yProbes: Int, zProbes: Int, spacing: Double = 1.0, offset: Vector3) = """
 ivec3 gridCoordinates(vec3 p, out vec3 f) {
@@ -179,6 +181,7 @@ void gatherSH(samplerBuffer btex, vec3 p, out vec3[9] blend) {
 }
 """.trimIndent()
 
-val glslGridCoordinates: String by phraseResource(resourceUrl("/phrases/irradiance-sh/grid-coordinates.frag"))
-val glslGridIndex: String by phraseResource(resourceUrl("/phrases/irradiance-sh/grid-index.frag"))
-val glslGatherSH: String by phraseResource(resourceUrl("/phrases/irradiance-sh/gather-sh"))
+val glslGridCoordinates: String by phraseResource("/phrases/irradiance-sh/grid-coordinates.frag")
+val glslGridIndex: String by phraseResource("/phrases/irradiance-sh/grid-index.frag")
+val glslGatherSH: String by phraseResource("/phrases/irradiance-sh/gather-sh.frag")
+val glslGatherSH0: String by phraseResource("/phrases/irradiance-sh/gather-sh0.frag")

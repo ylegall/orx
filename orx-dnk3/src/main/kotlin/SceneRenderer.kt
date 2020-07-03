@@ -168,10 +168,9 @@ class SceneRenderer {
         if (drawFinalBuffer) {
             outputPassTarget?.let { output ->
                 drawer.isolated {
+                    drawer.defaults()
                     drawer.ortho()
-                    drawer.view = Matrix44.IDENTITY
-                    drawer.model = Matrix44.IDENTITY
-                    val outputName = (postSteps.last() as FilterPostStep).output
+                    val outputName = (postSteps.lastOrNull() as? FilterPostStep<*>)?.output ?: "color"
                     val outputBuffer = buffers[outputName]
                             ?: throw IllegalArgumentException("can't find $outputName buffer")
                     drawer.image(outputBuffer)
