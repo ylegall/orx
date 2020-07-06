@@ -12,7 +12,7 @@ fun postRenderer(multisample: BufferMultisample = BufferMultisample.Disabled): S
     sr.outputPasses.clear()
     sr.outputPasses.add(
             RenderPass(
-                    listOf(HDRColorFacet(),FragmentIDFacet(), ClipDepthFacet()),
+                    listOf(HDRColorFacet(),FragmentIDFacet(), ClipDepthFacet(), ViewNormalFacet()),
                     multisample = multisample
             )
     )

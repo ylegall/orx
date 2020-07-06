@@ -46,4 +46,26 @@ class IrradianceDebugMaterial : Material {
         }
 
     }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is IrradianceDebugMaterial) return false
+
+        if (name != other.name) return false
+        if (doubleSided != other.doubleSided) return false
+        if (transparent != other.transparent) return false
+        if (fragmentID != other.fragmentID) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = name?.hashCode() ?: 0
+        result = 31 * result + doubleSided.hashCode()
+        result = 31 * result + transparent.hashCode()
+        result = 31 * result + fragmentID
+        return result
+    }
+
+
 }

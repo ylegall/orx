@@ -5,6 +5,8 @@
 #pragma import org.openrndr.extra.dnk3.cubemap.SphericalHarmonicsKt.glslGridCoordinates;
 #pragma import org.openrndr.extra.dnk3.cubemap.SphericalHarmonicsKt.glslGridIndex;
 #pragma import org.openrndr.extra.dnk3.cubemap.SphericalHarmonicsKt.glslGatherSH0;
+#pragma import org.openrndr.extra.noise.phrases.NoisePhrasesKt.phraseHash22;
+#pragma import org.openrndr.extra.noise.phrases.SimplexKt.phraseSimplex3;
 
 in vec2 v_texCoord0;
 uniform sampler2D tex0; // image
@@ -30,22 +32,26 @@ void main() {
     vec3 cameraPosition = (viewMatrixInverse * vec4(vec3(0.0), 1.0)).xyz;
 
     // trace in world space
-    vec3 traverse = worldCoordinate - cameraPosition;
+    vec3 traverse = cameraPosition - worldCoordinate;
     vec3 direction = normalize(traverse);
-    int steps = min(100, int(length(traverse) / stepLength));
-    vec3 step = traverse / steps;
-
-    vec3 marchPosition = cameraPosition;
-    vec3 accumulated = vec3(0.0);
-    for (int stepIndex = 0; stepIndex < steps; ++stepIndex) {
-
-        vec3 sh0;
-        gatherSH0(shMap, marchPosition, shMapDimensions, shMapOffset, shMapSpacing, sh0);
-        accumulated += sh0*0.1;
-        marchPosition += step;
+    if (length(traverse) > 10.0) {
+        traverse = direction*10.0;
+        worldCoordinate = cameraPosition - traverse;
     }
 
-    o_output = vec4(accumulated + inputColor, 1.0);
+    int steps = min(100, int(length(traverse) / 0.1));
+    vec3 step = traverse / steps;
 
-
+    vec3 marchPosition = worldCoordinate;
+    vec3 accumulated = inputColor;
+    float jitter = hash22(v_texCoord0).x;
+    marchPosition += jitter * step*0.5;
+    for (int stepIndex = 0; stepIndex < steps; ++stepIndex) {
+        float density = pow(abs(simplex31(marchPosition*0.25)), 4.0) * 0.1;
+        vec3 sh0;
+        gatherSH0(shMap, marchPosition, shMapDimensions, shMapOffset, shMapSpacing, sh0);
+        accumulated = accumulated * (1.0-density) + sh0 * density;
+        marchPosition += step;
+    }
+    o_output = vec4(accumulated, 1.0);
 }

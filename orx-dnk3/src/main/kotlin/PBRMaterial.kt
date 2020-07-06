@@ -5,6 +5,7 @@ import org.openrndr.draw.*
 import org.openrndr.extra.dnk3.cubemap.glslEvaluateSH
 import org.openrndr.extra.dnk3.cubemap.glslFetchSH
 import org.openrndr.extra.dnk3.cubemap.genGlslGatherSH
+import org.openrndr.extra.shaderphrases.phrases.phraseTbnMatrix
 import org.openrndr.math.Vector2
 import org.openrndr.math.Vector3
 import org.openrndr.math.Vector4
@@ -213,8 +214,7 @@ private fun ModelCoordinates.fs(index: Int) = """
 |        vec3 tangent = normalize(${tangentInput}.xyz);
 |        vec3 bitangent = cross(normal, tangent) * ${tangentInput}.w;
 |        mat3 tbn = mat3(tangent, bitangent, normal);
-|        x_texture.rgb = tbn * normalize(x_texture.rgb - vec3(0.5, 0.5, 0.)) ;
-|    
+|        x_texture.rgb = tbn * normalize( (x_texture.rgb - vec3(0.5, 0.5, 0.0))*vec3(2.0, 2.0, 1.0)) ;
 """.trimMargin()
 
 } else ""}   
@@ -308,7 +308,7 @@ data class SubsurfaceScatter(var enabled: Boolean) {
 
     fun fs(): String {
         return if (enabled) """
-            f_diffuse.rgb += pow(smoothstep(1.0, 0.0, abs(dot(normalize(N),normalize(V)))), p_sssShape) * clamp(evaluateSH(-V, sh), vec3(0.0), vec3(1.0)) * p_sssColor;            
+            f_diffuse.rgb += pow(smoothstep(1.0, 0.0, abs(dot(normalize(N),normalize(V)))), p_sssShape) * clamp(evaluateSH(-V, sh), vec3(0.0), vec3(1.0)) * p_sssColor.rgb;            
         """ else ""
     }
 
@@ -318,19 +318,37 @@ data class SubsurfaceScatter(var enabled: Boolean) {
             shadeStyle.parameter("sssShape", shape)
         }
     }
+}
 
+data class CubemapReflection(var cubemap: Cubemap? = null) {
+    var color: ColorRGBa = ColorRGBa.WHITE
+
+    fun fs(): String {
+        return if (cubemap != null) {
+            """
+            vec2 dfg = PrefilteredDFG_Karis(m_roughness, NoV);
+            vec3 sc = m_metalness * m_color.rgb + (1.0-m_metalness) * vec3(0.04);
+            f_specular.rgb += sc * (texture(p_radianceMap, reflect(-V, normalize(f_worldNormal)),  m_roughness*7.0 ).rgb * dfg.x + dfg.y) * p_radianceColor.rgb;
+            """
+        } else { "" }
+    }
+    fun applyToShadeStyle(shadeStyle: ShadeStyle) {
+        if (cubemap != null) {
+            shadeStyle.parameter("radianceMap", cubemap!!)
+            shadeStyle.parameter("radianceColor", color)
+        }
+    }
 }
 
 
 class PBRMaterial : Material {
     override var name: String? = null
     override fun toString(): String {
-        return "PBRMaterial(fragmentID: $fragmentID, doubleSided: $doubleSided, textures: $textures, color: $color, metalness: $metalness, roughness: $roughness, emissive: $emission))"
+        return "PBRMaterial(name: $name, fragmentID: $fragmentID, doubleSided: $doubleSided, textures: $textures, color: $color, metalness: $metalness, roughness: $roughness, emissive: $emission))"
     }
 
     override var fragmentID = fragmentIDCounter.apply {
         fragmentIDCounter++
-
     }
 
     override var doubleSided: Boolean = false
@@ -342,6 +360,7 @@ class PBRMaterial : Material {
     var emission = ColorRGBa.BLACK
 
     var subsurfaceScatter = SubsurfaceScatter(false)
+    var cubemapReflection = CubemapReflection(null)
 
 
     var fragmentPreamble: String? = null
@@ -392,9 +411,7 @@ class PBRMaterial : Material {
                     }
                 }).joinToString("\n")
             } else ""
-
             val displacers = textures.filter { it.target is TextureTarget.Height }
-
 
             val skinVS = if (primitiveContext.hasSkinning) """
                     uvec4 j = a_joints;
@@ -427,7 +444,6 @@ class PBRMaterial : Material {
 
             val doubleSidedFS = if (doubleSided) {
                 """
-                    
                     if (dot(V, N) <0) {
                         N *= -1.0;
                     }
@@ -443,14 +459,14 @@ class PBRMaterial : Material {
         vec3 ep = (p_viewMatrixInverse * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
         vec3 Vr = ep - v_worldPosition;
         vec3 V = normalize(Vr);
-        $doubleSidedFS
+
         float NoV = ${if (primitiveContext.hasNormalAttribute) "abs(dot(N, V)) + 1e-5" else "1"};
 
         ${if (environmentMap && materialContext.meshCubemaps.isNotEmpty() && primitiveContext.hasNormalAttribute) """
            {
                 vec2 dfg = PrefilteredDFG_Karis(m_roughness, NoV);
                 vec3 sc = m_metalness * m_color.rgb + (1.0-m_metalness) * vec3(0.04);
-
+                
                 f_specular.rgb += sc * (texture(p_environmentMap, reflect(-V, normalize(f_worldNormal))).rgb * dfg.x + dfg.y) * m_ambientOcclusion;
             }
         """.trimIndent() else ""}
@@ -469,9 +485,12 @@ class PBRMaterial : Material {
         ${if (materialContext.irradianceSH?.shMap != null) """
                 vec3[9] sh;
                 gatherSH(p_shMap, v_worldPosition, sh);
-                f_diffuse.rgb += clamp(evaluateSH(N, sh), vec3(0.0), vec3(1.0)) * m_color.rgb;        
-                f_ambient.rgb = vec3(0.0);
+                vec3 irradiance = clamp(evaluateSH(N, sh), vec3(0.0), vec3(1.0)) * m_color.rgb;
+                vec3 ks = F_SchlickRoughness(m_color.rgb * (m_metalness) + 0.04 * (1.0-m_metalness), m_roughness, NoV);
+                f_diffuse.rgb = irradiance * ks;
+                f_ambient.rgb = (1.0-ks) * irradiance;
                 ${subsurfaceScatter.fs()}
+                ${cubemapReflection.fs()}
         """.trimIndent() else ""
             }
         
@@ -513,6 +532,7 @@ class PBRMaterial : Material {
             |$shaderGGX
             |$shaderVSM
             |$shaderNoRepetition
+            |$phraseTbnMatrix
             """.trimMargin()
                 this.suppressDefaultOutput = true
                 this.vertexTransform = vs
@@ -566,6 +586,7 @@ class PBRMaterial : Material {
         if (needLight(context)) {
 
             subsurfaceScatter.applyToShadeStyle(shadeStyle)
+            cubemapReflection.applyToShadeStyle(shadeStyle)
 
             textures.forEachIndexed { index, texture ->
                 when (val source = texture.source) {

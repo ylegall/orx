@@ -133,16 +133,16 @@ class FragmentIDFacet: ColorBufferFacetCombiner(setOf(FacetType.FRAGMENT_ID), "f
 
 class LDRColorFacet : ColorBufferFacetCombiner(setOf(FacetType.DIFFUSE, FacetType.SPECULAR, FacetType.EMISSIVE), "color", ColorFormat.RGBa, ColorType.UINT8) {
     override fun generateShader() = """
-    vec3 finalColor =  (max(vec3(0.0), f_diffuse.rgb) + max(vec3(0.0),f_specular.rgb) + max(vec3(0.0), f_emission.rgb)) * (1.0 - f_fog.a) + f_fog.rgb * f_fog.a;
+    vec3 finalColor =  (max(vec3(0.0), f_diffuse.rgb) + max(vec3(0.0),f_specular.rgb) + max(vec3(0.0), f_emission.rgb) + max(vec3(0.0), f_ambient.rgb)) * (1.0 - f_fog.a) + f_fog.rgb * f_fog.a;
     o_$targetOutput = pow(vec4(finalColor.rgb, 1.0), vec4(1.0/2.2));
     o_$targetOutput *= m_color.a;
     
     """
 }
 
-class HDRColorFacet : ColorBufferFacetCombiner(setOf(FacetType.DIFFUSE, FacetType.SPECULAR, FacetType.EMISSIVE), "color", ColorFormat.RGBa, ColorType.UINT8) {
+class HDRColorFacet : ColorBufferFacetCombiner(setOf(FacetType.DIFFUSE, FacetType.SPECULAR, FacetType.EMISSIVE), "color", ColorFormat.RGBa, ColorType.FLOAT16) {
     override fun generateShader() = """
-    vec3 finalColor =  (max(vec3(0.0), f_diffuse.rgb) + max(vec3(0.0),f_specular.rgb) + max(vec3(0.0), f_emission.rgb)) * (1.0 - f_fog.a) + f_fog.rgb * f_fog.a;
+    vec3 finalColor =  (max(vec3(0.0), f_diffuse.rgb) + max(vec3(0.0),f_specular.rgb) + max(vec3(0.0), f_emission.rgb) + max(vec3(0.0), f_ambient.rgb)) * (1.0 - f_fog.a) + f_fog.rgb * f_fog.a;
     o_$targetOutput = vec4(finalColor.rgb, 1.0);
     o_$targetOutput *= m_color.a;
     """

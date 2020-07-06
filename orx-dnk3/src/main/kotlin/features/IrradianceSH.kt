@@ -73,7 +73,8 @@ fun SceneRenderer.processIrradiance(drawer: Drawer, scene: Scene, feature: Irrad
 
                     for (side in CubemapSide.values()) {
                         val target = renderTarget(feature.cubemapSize, feature.cubemapSize) {
-                            this.colorBuffer(tempCubemap.side(side))
+                            //this.colorBuffer(tempCubemap.side(side))
+                            this.cubemap(tempCubemap, side)
                             this.depthBuffer(cubemapDepthBuffer)
                         }
                         drawer.isolatedWithTarget(target) {

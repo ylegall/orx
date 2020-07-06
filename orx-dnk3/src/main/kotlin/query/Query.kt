@@ -1,6 +1,7 @@
 package org.openrndr.extra.dnk3.query
 
 import org.openrndr.extra.dnk3.Material
+import org.openrndr.extra.dnk3.Mesh
 import org.openrndr.extra.dnk3.Scene
 import org.openrndr.extra.dnk3.SceneNode
 
@@ -24,17 +25,32 @@ fun SceneNode.findNodeByName(name: String): SceneNode? {
 }
 
 fun SceneNode.findMaterialByName(name: String): Material? {
-    for (entity in entities) {
-        if (entity is Material && entity.name == name) {
-            return entity
-        }
-    }
-
-    for (child in children) {
-        val candidate = child.findMaterialByName(name)
-        if (candidate != null) {
-            return candidate
-        }
-    }
-    return null
+    return allMaterials().find { it.name == name }
 }
+
+fun Scene.allMaterials(): Set<Material> {
+    return root.allMaterials()
+}
+
+fun SceneNode.allMaterials(): Set<Material> {
+    val materials = mutableSetOf<Material>()
+    fun processNode(node: SceneNode) {
+        for (entity in node.entities) {
+            when (entity) {
+                is Mesh -> {
+                    materials.addAll(entity.primitives.map { it.material })
+                }
+                else -> {
+                }
+            }
+        }
+
+        for (child in node.children) {
+            processNode(child)
+        }
+    }
+    processNode(this)
+    return materials
+}
+
+

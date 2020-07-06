@@ -57,7 +57,7 @@ open class CubemapFilter(private val shader: Shader? = null, private val watcher
 
 
             target.forEach {
-                renderTarget.attach(it.side(side))
+                renderTarget.attach(it, side, 0)
             }
 
             for (i in 1 until target.size) {

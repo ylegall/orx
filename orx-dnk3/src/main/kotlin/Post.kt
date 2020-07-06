@@ -18,7 +18,7 @@ class FilterPostStep<T:Filter>(val outputScale: Double,
                      val update: (T.(PostContext) -> Unit)? = null) : PostStep {
 
     override fun apply(buffers: MutableMap<String, ColorBuffer>, postContext: PostContext) {
-        val inputBuffers = inputs.map { buffers[it]!! }
+        val inputBuffers = inputs.map { buffers[it]?: error("buffer not found: $it") }
         val outputBuffer = buffers.getOrPut(output) {
             colorBuffer((inputBuffers[0].width * outputScale).toInt(),
                     (inputBuffers[0].height * outputScale).toInt(),

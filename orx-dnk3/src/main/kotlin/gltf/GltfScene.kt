@@ -88,6 +88,9 @@ fun GltfFile.buildSceneNodes(): GltfSceneData {
                     localBuffer.position(localBufferView.byteOffset)
                     localBuffer.limit(localBufferView.byteOffset + localBufferView.byteLength)
                     val cb = ColorBuffer.fromBuffer(localBuffer)
+                    cb.generateMipmaps()
+                    cb.filter(MinifyingFilter.LINEAR_MIPMAP_LINEAR, MagnifyingFilter.LINEAR)
+                    cb.anisotropy = 100.0
                     localBuffer.limit(localBuffer.capacity())
                     cb
                 } ?: error("no uri and no bufferview")
