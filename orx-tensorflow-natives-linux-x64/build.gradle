@@ -1,0 +1,12 @@
+repositories {
+    maven {
+        url = "https://oss.sonatype.org/content/repositories/snapshots/"
+        mavenContent {
+            snapshotsOnly()
+        }
+    }
+}
+
+dependencies {
+    compile "org.tensorflow:tensorflow-core-platform:$tensorflowVersion"
+}
