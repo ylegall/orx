@@ -1,6 +1,4 @@
-import org.tensorflow.DataType
-import org.tensorflow.Output
-import org.tensorflow.Tensor
+import org.tensorflow.*
 import org.tensorflow.op.Scope
 import org.tensorflow.op.core.*
 import org.tensorflow.op.dtypes.Cast
@@ -8,6 +6,7 @@ import org.tensorflow.op.image.CropAndResize
 import org.tensorflow.op.image.ResizeBilinear
 import org.tensorflow.op.linalg.MatMul
 import org.tensorflow.op.math.*
+import org.tensorflow.op.nn.*
 import org.tensorflow.types.*
 import org.tensorflow.types.family.TNumber
 import org.tensorflow.types.family.TType
@@ -147,17 +146,28 @@ class GraphBuilder(val scope: Scope) {
     }
 
     fun Output<TFloat32>.greater(comp: Float): Output<TBool> {
-        return Greater.create(scope,this, scalarConstant(comp)).asOutput()
+        return Greater.create(scope, this, scalarConstant(comp)).asOutput()
     }
 
-    fun <T: TNumber> Output<T>.oneHot(size:Int, onValue:Float = 1.0f, offValue:Float = 0.0f) : Output<TFloat32> {
+    fun <T : TNumber> Output<T>.oneHot(size: Int, onValue: Float = 1.0f, offValue: Float = 0.0f): Output<TFloat32> {
         return OneHot.create(scope, this, scalarConstant(size), scalarConstant(onValue), scalarConstant(offValue)).asOutput()
     }
+
+    fun <T : TNumber> Output<T>.relu(): Output<T> = Relu.create(scope, this).asOutput()
+    fun <T : TNumber> Output<T>.relu6(): Output<T> = Relu6.create(scope, this).asOutput()
+
+    fun <T : TNumber> Output<T>.l2Loss(t: Operand<T>): Output<T> =
+            L2Loss.create(scope, this).asOutput()
+
+    fun <T : TNumber> Output<T>.biasAdd(bias: Operand<T>): Output<T> =
+            BiasAdd.create(scope, this, bias).asOutput()
+
 
     fun <T : TType> Output<T>.squeeze(axis: LongArray): Output<T> {
         val options = Squeeze.axis(axis.toList())
         return Squeeze.create(scope, this, options).asOutput()
     }
+
     fun <T : TNumber> Output<T>.cropAndResize(
             boxes: Array<FloatArray>,
             boxIndices: IntArray,
@@ -167,8 +177,9 @@ class GraphBuilder(val scope: Scope) {
     }
 }
 
-fun graph(scope: Scope, builder: GraphBuilder.() -> Unit) {
-    val gb = GraphBuilder(scope)
+fun graph(builder: GraphBuilder.() -> Unit): Graph {
+    val graph = Graph()
+    val gb = GraphBuilder(Scope(graph))
     gb.builder()
-    //return ExecutableGraph(gb.scope, gb.inputs, gb.outputs)
+    return graph
 }

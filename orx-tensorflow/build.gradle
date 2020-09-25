@@ -6,7 +6,10 @@ repositories {
         }
     }
 }
-
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
 sourceSets {
     demo {
         java {
@@ -15,7 +18,27 @@ sourceSets {
             runtimeClasspath += main.getRuntimeClasspath()
         }
     }
+    wrapgen {
+        java {
+            srcDirs = ["src/wrapgen/kotlin"]
+            compileClasspath += main.getCompileClasspath()
+            runtimeClasspath += main.getRuntimeClasspath()
+        }
+    }
 }
+
+compileWrapgenKotlin {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+
+    kotlinOptions {
+        jvmTarget = "1.8"
+        apiVersion = "1.4"
+        languageVersion = "1.4"
+    }
+}
+
+
 dependencies {
     implementation "com.google.code.gson:gson:$gsonVersion"
     demoImplementation("org.openrndr:openrndr-core:$openrndrVersion")
@@ -30,6 +53,11 @@ dependencies {
     demoImplementation(project(":orx-fx"))
     demoImplementation(sourceSets.getByName("main").output)
     compile "org.tensorflow:tensorflow-core-platform:$tensorflowVersion"
+
+    // -- wrapgen
+    wrapgenImplementation 'com.github.javaparser:javaparser-core:3.15.21'
+
+
 }
 
 
