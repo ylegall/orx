@@ -8,6 +8,8 @@ fun main() {
         val a = arrayConstant(intArrayOf(10))
         val b = arrayConstant(intArrayOf(10))
         val c = a + b
+
+        val d = abs(a)
         println(c.op())
     }
     val s = Session(g)

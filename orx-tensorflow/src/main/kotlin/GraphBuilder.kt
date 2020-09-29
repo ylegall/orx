@@ -1,5 +1,8 @@
+import org.openrndr.extra.tensorflow.ops.KLinalgOps
+import org.openrndr.extra.tensorflow.ops.KMathOps
+import org.openrndr.extra.tensorflow.ops.KShapeOps
 import org.tensorflow.*
-import org.tensorflow.op.Scope
+import org.tensorflow.op.*
 import org.tensorflow.op.core.*
 import org.tensorflow.op.dtypes.Cast
 import org.tensorflow.op.image.CropAndResize
@@ -11,7 +14,10 @@ import org.tensorflow.types.*
 import org.tensorflow.types.family.TNumber
 import org.tensorflow.types.family.TType
 
-class GraphBuilder(val scope: Scope) {
+class GraphBuilder(val executionEnvironment: ExecutionEnvironment) : KShapeOps, KMathOps, KLinalgOps {
+
+
+    val scope by lazy { ops.scope() }
     val inputs = mutableMapOf<String, Tensor<*>?>()
     val outputs = mutableMapOf<String, Tensor<*>?>()
 
@@ -175,11 +181,16 @@ class GraphBuilder(val scope: Scope) {
     ): Output<TFloat32> {
         return CropAndResize.create(scope, this, arrayConstant(boxes), boxIndices.constant(), size.constant()).asOutput()
     }
+
+    val ops = Ops.create(executionEnvironment)
+    override val shapeOps by lazy { ops.shape }
+    override val mathOps by lazy { ops.math }
+    override val linalgOps by lazy {ops.linalg}
 }
 
 fun graph(builder: GraphBuilder.() -> Unit): Graph {
     val graph = Graph()
-    val gb = GraphBuilder(Scope(graph))
+    val gb = GraphBuilder(graph)
     gb.builder()
     return graph
 }

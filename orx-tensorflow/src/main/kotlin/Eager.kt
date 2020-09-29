@@ -6,7 +6,7 @@ fun <T> eager(f: GraphBuilder.() -> T): T {
     val tf = Ops.create(session)
     val scope = tf.scope()
     println("running graph")
-    val gb = GraphBuilder(scope)
+    val gb = GraphBuilder(session)
     val retval = gb.f()
     println("done and closing")
     session.close()

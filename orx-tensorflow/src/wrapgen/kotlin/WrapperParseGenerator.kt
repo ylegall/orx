@@ -1,4 +1,6 @@
 import com.github.javaparser.utils.SourceRoot
+import org.tensorflow.Operand
+import org.tensorflow.types.TInt32
 import java.net.URI
 import java.nio.file.Path
 
@@ -7,15 +9,26 @@ fun main() {
     val sourceRoot = SourceRoot(Path.of(URI("file:/home/rndr/git/tensorflow/java/tensorflow-core/tensorflow-core-api/src/gen/annotations")))
     sourceRoot.tryToParse()
 
+    val sourceRoot2 = SourceRoot(Path.of(URI("file:/home/rndr/git/tensorflow/java/tensorflow-core/tensorflow-core-api/src/main/java/org/tensorflow")))
+    sourceRoot2.tryToParse()
+
+
     val opsRoot = SourceRoot(Path.of(URI("file:/home/rndr/git/tensorflow/java/tensorflow-core/tensorflow-core-api/src/gen/java/org/tensorflow/op")))
     opsRoot.tryToParse()
 
-    val opsGroup = "MathOps"
+
+
+
+    val opsGroup = "XlaOps"
+    val opsVal = opsGroup.take(1).toLowerCase() + opsGroup.drop(1)
+
     val opsUnit = sourceRoot.parse("org.tensorflow.op", "$opsGroup.java")
 
     val opsClass = opsUnit.primaryType.get()
 
-    println("interface $opsGroup(val scope:Scope) {")
+    println("interface K$opsGroup {")
+
+    println("\tval $opsVal: $opsGroup")
 
     opsClass.methods.forEach { method ->
         val returnType = method.type.asClassOrInterfaceType().name.asString()
@@ -32,16 +45,22 @@ fun main() {
 
         val opCU = opsRoot.compilationUnits.find {
             it.primaryTypeName.get() == returnType
-        }!!
-        val opClass = opCU.primaryType.get().asClassOrInterfaceDeclaration()
-        val outputMethod = opClass.getMethodsByName("asOutput").firstOrNull()
+        } ?: sourceRoot2.compilationUnits.find {
+            it.primaryTypeName.get() == returnType
+        }
+        if (opCU != null) {
+            val opClass = opCU.primaryType.get().asClassOrInterfaceDeclaration()
+            val outputMethod = opClass.getMethodsByName("asOutput").firstOrNull()
 
-        if (outputMethod != null) {
-            println("""
+            if (outputMethod != null) {
+                println("""
 fun <$genericType> ${method.name}($parameters) : ${outputMethod.type} { 
-    val op = $opsGroup.${method.name}(scope, $parameterPass)
+    val op = $opsVal.${method.name}($parameterPass)
     return op.asOutput()
-}""".split("\n").joinToString("\n") { "\t$it"})
+}""".split("\n").joinToString("\n") { "\t$it" })
+            }
+        } else {
+            println("// omitted ${method.name}:$returnType")
         }
 
     }

@@ -8,5 +8,6 @@ repositories {
 }
 
 dependencies {
-    compile "org.tensorflow:tensorflow-core-platform:$tensorflowVersion"
+//    https://oss.sonatype.org/content/repositories/snapshots/org/tensorflow/tensorflow-core-api/0.2.0-SNAPSHOT/tensorflow-core-api-0.2.0-20200929.055440-151-windows-x86_64.jar
+//    compile "org.tensorflow:tensorflow-core-platform:$tensorflowVersion"
 }
