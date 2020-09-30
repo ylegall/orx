@@ -19,7 +19,7 @@ fun main() {
 
 
 
-    val opsGroup = "NnOps"
+    val opsGroup = "Ops"
     val opsVal = opsGroup.take(1).toLowerCase() + opsGroup.drop(1)
 
     val opsUnit = sourceRoot.parse("org.tensorflow.op", "$opsGroup.java")
@@ -31,46 +31,52 @@ fun main() {
     println("\tval $opsVal: $opsGroup")
 
     opsClass.methods.forEach { method ->
-        val returnType = method.type.asClassOrInterfaceType().name.asString()
-        val parameters = method.parameters.joinToString(", ") {
-            if (!it.isVarArgs) {
-                "${it.name}: ${it.type}"
-            } else {
-                "varargs ${it.name}: ${it.type}"
+
+        if (method.type.isClassOrInterfaceType) {
+
+            val returnType = method.type.asClassOrInterfaceType().name.asString()
+            val parameters = method.parameters.joinToString(", ") {
+                if (!it.isVarArgs) {
+                    "${it.name}: ${it.type}"
+                } else {
+                    "varargs ${it.name}: ${it.type}"
+                }
             }
-        }
-        val parameterPass = method.parameters.joinToString(", ") {
-            if (!it.isVarArgs) {
-                "${it.name}"
-            } else {
-                "*${it.name}"
+            val parameterPass = method.parameters.joinToString(", ") {
+                if (!it.isVarArgs) {
+                    "${it.name}"
+                } else {
+                    "*${it.name}"
+                }
             }
-        }
 
-        val genericType = method.typeParameters.joinToString(", ") {
-            it.toString().replace("extends", ":")
-        }
+            val genericType = ("<" + method.typeParameters.joinToString(", ") {
+                it.toString().replace("extends", ":")
+            } + ">").replace("<>","")
 
-        val opCU = opsRoot.compilationUnits.find {
-            it.primaryTypeName.get() == returnType
-        } ?: sourceRoot2.compilationUnits.find {
-            it.primaryTypeName.get() == returnType
-        }
-        if (opCU != null) {
-            val opClass = opCU.primaryType.get().asClassOrInterfaceDeclaration()
-            val outputMethod = opClass.getMethodsByName("asOutput").firstOrNull()
+            val opCU = opsRoot.compilationUnits.find {
+                it.primaryTypeName.get() == returnType
+            } ?: sourceRoot2.compilationUnits.find {
+                it.primaryTypeName.get() == returnType
+            }
+            if (opCU != null) {
+                val opClass = opCU.primaryType.get().asClassOrInterfaceDeclaration()
+                val outputMethod = opClass.getMethodsByName("asOutput").firstOrNull()
 
-            if (outputMethod != null) {
-                println("""
-fun <$genericType> ${method.name}($parameters) : ${outputMethod.type} { 
+                if (outputMethod != null) {
+                    println("""
+fun $genericType ${method.name}($parameters) : ${outputMethod.type} { 
     val op = $opsVal.${method.name}($parameterPass)
     return op.asOutput()
 }""".split("\n").joinToString("\n") { "\t$it" })
+                }
+            } else {
+                println("// omitted ${method.name}:$returnType")
             }
-        } else {
-            println("// omitted ${method.name}:$returnType")
-        }
 
+        } else {
+            println("// omitted ${method.nameAsString}")
+        }
     }
     println("}")
 }

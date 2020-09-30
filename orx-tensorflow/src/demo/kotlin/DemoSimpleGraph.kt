@@ -6,8 +6,8 @@ import org.tensorflow.types.TFloat32
 
 fun main() {
     val g = graph {
-        val a = arrayConstant(intArrayOf(10))
-        val b = arrayConstant(intArrayOf(10))
+        val a = array(10)
+        val b = array(10)
         val c = a + b
 
         val d = cos(cast(a, TFloat32.DTYPE))
