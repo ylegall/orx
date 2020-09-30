@@ -1,3 +1,4 @@
+import org.openrndr.extra.tensorflow.eager
 import org.openrndr.extra.tensorflow.summary
 import org.openrndr.extra.tensorflow.toIntArray
 

@@ -19,7 +19,7 @@ fun main() {
 
 
 
-    val opsGroup = "XlaOps"
+    val opsGroup = "NnOps"
     val opsVal = opsGroup.take(1).toLowerCase() + opsGroup.drop(1)
 
     val opsUnit = sourceRoot.parse("org.tensorflow.op", "$opsGroup.java")
@@ -33,10 +33,18 @@ fun main() {
     opsClass.methods.forEach { method ->
         val returnType = method.type.asClassOrInterfaceType().name.asString()
         val parameters = method.parameters.joinToString(", ") {
-            "${it.name} : ${it.type}"
+            if (!it.isVarArgs) {
+                "${it.name}: ${it.type}"
+            } else {
+                "varargs ${it.name}: ${it.type}"
+            }
         }
         val parameterPass = method.parameters.joinToString(", ") {
-            "${it.name}"
+            if (!it.isVarArgs) {
+                "${it.name}"
+            } else {
+                "*${it.name}"
+            }
         }
 
         val genericType = method.typeParameters.joinToString(", ") {

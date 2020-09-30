@@ -11,7 +11,6 @@ import org.tensorflow.types.family.TNumber
 import org.tensorflow.types.family.TType
 
 
-
 interface KMathOps {
 
     val mathOps: MathOps
@@ -56,8 +55,8 @@ interface KMathOps {
         return op.asOutput()
     }
 
-    fun <T : TType> approximateEqual(x: Operand<T>, y: Operand<T>, options: ApproximateEqual.Options): Output<TBool> {
-        val op = mathOps.approximateEqual(x, y, options)
+    fun <T : TType> approximateEqual(x: Operand<T>, y: Operand<T>, vararg options: ApproximateEqual.Options): Output<TBool> {
+        val op = mathOps.approximateEqual(x, y, *options)
         return op.asOutput()
     }
 
@@ -151,18 +150,18 @@ interface KMathOps {
         return op.asOutput()
     }
 
-    fun <T : TType, U : TNumber> cumprod(x: Operand<T>, axis: Operand<U>, options: Cumprod.Options): Output<T> {
-        val op = mathOps.cumprod(x, axis, options)
+    fun <T : TType, U : TNumber> cumprod(x: Operand<T>, axis: Operand<U>, vararg options: Cumprod.Options): Output<T> {
+        val op = mathOps.cumprod(x, axis, *options)
         return op.asOutput()
     }
 
-    fun <T : TType, U : TNumber> cumsum(x: Operand<T>, axis: Operand<U>, options: Cumsum.Options): Output<T> {
-        val op = mathOps.cumsum(x, axis, options)
+    fun <T : TType, U : TNumber> cumsum(x: Operand<T>, axis: Operand<U>, vararg options: Cumsum.Options): Output<T> {
+        val op = mathOps.cumsum(x, axis, *options)
         return op.asOutput()
     }
 
-    fun <U : TNumber, T : TNumber> denseBincount(input: Operand<T>, size: Operand<T>, weights: Operand<U>, options: DenseBincount.Options): Output<U> {
-        val op = mathOps.denseBincount(input, size, weights, options)
+    fun <U : TNumber, T : TNumber> denseBincount(input: Operand<T>, size: Operand<T>, weights: Operand<U>, vararg options: DenseBincount.Options): Output<U> {
+        val op = mathOps.denseBincount(input, size, weights, *options)
         return op.asOutput()
     }
 
@@ -181,8 +180,8 @@ interface KMathOps {
         return op.asOutput()
     }
 
-    fun <T : TType> equal(x: Operand<T>, y: Operand<T>, options: Equal.Options): Output<TBool> {
-        val op = mathOps.equal(x, y, options)
+    fun <T : TType> equal(x: Operand<T>, y: Operand<T>, vararg options: Equal.Options): Output<TBool> {
+        val op = mathOps.equal(x, y, *options)
         return op.asOutput()
     }
 
@@ -211,7 +210,7 @@ interface KMathOps {
         return op.asOutput()
     }
 
-    fun  fact(): Output<TString> {
+    fun fact(): Output<TString> {
         val op = mathOps.fact()
         return op.asOutput()
     }
@@ -326,8 +325,8 @@ interface KMathOps {
         return op.asOutput()
     }
 
-    fun <T : TType, U : TNumber> mean(input: Operand<T>, axis: Operand<U>, options: Mean.Options): Output<T> {
-        val op = mathOps.mean(input, axis, options)
+    fun <T : TType, U : TNumber> mean(input: Operand<T>, axis: Operand<U>, vararg options: Mean.Options): Output<T> {
+        val op = mathOps.mean(input, axis, *options)
         return op.asOutput()
     }
 
@@ -366,8 +365,8 @@ interface KMathOps {
         return op.asOutput()
     }
 
-    fun <T : TType> notEqual(x: Operand<T>, y: Operand<T>, options: NotEqual.Options): Output<TBool> {
-        val op = mathOps.notEqual(x, y, options)
+    fun <T : TType> notEqual(x: Operand<T>, y: Operand<T>, vararg options: NotEqual.Options): Output<TBool> {
+        val op = mathOps.notEqual(x, y, *options)
         return op.asOutput()
     }
 

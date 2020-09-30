@@ -16,158 +16,158 @@ import org.tensorflow.types.family.TType
 interface KIoOps {
     val ioOps: IoOps
 
-    fun decodeBase64(input : Operand<TString>) : Output<TString> {
+    fun decodeBase64(input: Operand<TString>): Output<TString> {
         val op = ioOps.decodeBase64(input)
         return op.asOutput()
     }
 
-    fun decodeCompressed(bytes : Operand<TString>, options : DecodeCompressed.Options) : Output<TString> {
-        val op = ioOps.decodeCompressed(bytes, options)
+    fun decodeCompressed(bytes: Operand<TString>, vararg options: DecodeCompressed.Options): Output<TString> {
+        val op = ioOps.decodeCompressed(bytes, *options)
         return op.asOutput()
     }
 
-    fun decodeJsonExample(jsonExamples : Operand<TString>) : Output<TString> {
+    fun decodeJsonExample(jsonExamples: Operand<TString>): Output<TString> {
         val op = ioOps.decodeJsonExample(jsonExamples)
         return op.asOutput()
     }
 
-    fun <T : TNumber> decodePaddedRaw(inputBytes : Operand<TString>, fixedLength : Operand<TInt32>, outType : DataType<T>, options : DecodePaddedRaw.Options) : Output<T> {
-        val op = ioOps.decodePaddedRaw(inputBytes, fixedLength, outType, options)
+    fun <T : TNumber> decodePaddedRaw(inputBytes: Operand<TString>, fixedLength: Operand<TInt32>, outType: DataType<T>, vararg options: DecodePaddedRaw.Options): Output<T> {
+        val op = ioOps.decodePaddedRaw(inputBytes, fixedLength, outType, *options)
         return op.asOutput()
     }
 
-    fun <T : TType> decodeRaw(bytes : Operand<TString>, outType : DataType<T>, options : DecodeRaw.Options) : Output<T> {
-        val op = ioOps.decodeRaw(bytes, outType, options)
+    fun <T : TType> decodeRaw(bytes: Operand<TString>, outType: DataType<T>, vararg options: DecodeRaw.Options): Output<T> {
+        val op = ioOps.decodeRaw(bytes, outType, *options)
         return op.asOutput()
     }
 
-    fun encodeBase64(input : Operand<TString>, options : EncodeBase64.Options) : Output<TString> {
-        val op = ioOps.encodeBase64(input, options)
+    fun encodeBase64(input: Operand<TString>, vararg options: EncodeBase64.Options): Output<TString> {
+        val op = ioOps.encodeBase64(input, *options)
         return op.asOutput()
     }
 
-    fun fifoQueue(componentTypes : List<DataType<*>>, options : FifoQueue.Options) : Output<TType> {
-        val op = ioOps.fifoQueue(componentTypes, options)
+    fun fifoQueue(componentTypes: List<DataType<*>>, vararg options: FifoQueue.Options): Output<TType> {
+        val op = ioOps.fifoQueue(componentTypes, *options)
         return op.asOutput()
     }
 
-    fun fixedLengthRecordReader(recordBytes : Long, options : FixedLengthRecordReader.Options) : Output<TType> {
-        val op = ioOps.fixedLengthRecordReader(recordBytes, options)
+    fun fixedLengthRecordReader(recordBytes: Long, vararg options: FixedLengthRecordReader.Options): Output<TType> {
+        val op = ioOps.fixedLengthRecordReader(recordBytes, *options)
         return op.asOutput()
     }
 
-    fun identityReader(options : IdentityReader.Options) : Output<TType> {
-        val op = ioOps.identityReader(options)
+    fun identityReader(vararg options: IdentityReader.Options): Output<TType> {
+        val op = ioOps.identityReader(*options)
         return op.asOutput()
     }
 
-    fun lmdbReader(options : LmdbReader.Options) : Output<TString> {
-        val op = ioOps.lmdbReader(options)
+    fun lmdbReader(vararg options: LmdbReader.Options): Output<TString> {
+        val op = ioOps.lmdbReader(*options)
         return op.asOutput()
     }
 
-    fun matchingFiles(pattern : Operand<TString>) : Output<TString> {
+    fun matchingFiles(pattern: Operand<TString>): Output<TString> {
         val op = ioOps.matchingFiles(pattern)
         return op.asOutput()
     }
 
-    fun paddingFifoQueue(componentTypes : List<DataType<*>>, options : PaddingFifoQueue.Options) : Output<TType> {
-        val op = ioOps.paddingFifoQueue(componentTypes, options)
+    fun paddingFifoQueue(componentTypes: List<DataType<*>>, vararg options: PaddingFifoQueue.Options): Output<TType> {
+        val op = ioOps.paddingFifoQueue(componentTypes, *options)
         return op.asOutput()
     }
 
-    fun <T : TType> parseTensor(serialized : Operand<TString>, outType : DataType<T>) : Output<T> {
+    fun <T : TType> parseTensor(serialized: Operand<TString>, outType: DataType<T>): Output<T> {
         val op = ioOps.parseTensor(serialized, outType)
         return op.asOutput()
     }
 
-    fun priorityQueue(componentTypes : List<DataType<*>>, shapes : List<Shape>, options : PriorityQueue.Options) : Output<TType> {
-        val op = ioOps.priorityQueue(componentTypes, shapes, options)
+    fun priorityQueue(componentTypes: List<DataType<*>>, shapes: List<Shape>, vararg options: PriorityQueue.Options): Output<TType> {
+        val op = ioOps.priorityQueue(componentTypes, shapes, *options)
         return op.asOutput()
     }
 
-    fun queueIsClosed(handle : Operand<*>) : Output<TBool> {
+    fun queueIsClosed(handle: Operand<*>): Output<TBool> {
         val op = ioOps.queueIsClosed(handle)
         return op.asOutput()
     }
 
-    fun queueSize(handle : Operand<*>) : Output<TInt32> {
+    fun queueSize(handle: Operand<*>): Output<TInt32> {
         val op = ioOps.queueSize(handle)
         return op.asOutput()
     }
 
-    fun randomShuffleQueue(componentTypes : List<DataType<*>>, options : RandomShuffleQueue.Options) : Output<TType> {
-        val op = ioOps.randomShuffleQueue(componentTypes, options)
+    fun randomShuffleQueue(componentTypes: List<DataType<*>>, vararg options: RandomShuffleQueue.Options): Output<TType> {
+        val op = ioOps.randomShuffleQueue(componentTypes, *options)
         return op.asOutput()
     }
 
-    fun readFile(filename : Operand<TString>) : Output<TString> {
+    fun readFile(filename: Operand<TString>): Output<TString> {
         val op = ioOps.readFile(filename)
         return op.asOutput()
     }
 
-    fun readerNumRecordsProduced(readerHandle : Operand<*>) : Output<TInt64> {
+    fun readerNumRecordsProduced(readerHandle: Operand<*>): Output<TInt64> {
         val op = ioOps.readerNumRecordsProduced(readerHandle)
         return op.asOutput()
     }
 
-    fun readerNumWorkUnitsCompleted(readerHandle : Operand<*>) : Output<TInt64> {
+    fun readerNumWorkUnitsCompleted(readerHandle: Operand<*>): Output<TInt64> {
         val op = ioOps.readerNumWorkUnitsCompleted(readerHandle)
         return op.asOutput()
     }
 
-    fun readerSerializeState(readerHandle : Operand<*>) : Output<TString> {
+    fun readerSerializeState(readerHandle: Operand<*>): Output<TString> {
         val op = ioOps.readerSerializeState(readerHandle)
         return op.asOutput()
     }
 
-    fun <T : TType> serializeManySparse(sparseIndices : Operand<TInt64>, sparseValues : Operand<T>, sparseShape : Operand<TInt64>) : Output<TString>? {
+    fun <T : TType> serializeManySparse(sparseIndices: Operand<TInt64>, sparseValues: Operand<T>, sparseShape: Operand<TInt64>): Output<TString>? {
         val op = ioOps.serializeManySparse(sparseIndices, sparseValues, sparseShape)
         return op.asOutput()
     }
 
-    fun <U : TType, T : TType> serializeManySparse(sparseIndices : Operand<TInt64>, sparseValues : Operand<T>, sparseShape : Operand<TInt64>, outType : DataType<U>) : Output<U> {
+    fun <U : TType, T : TType> serializeManySparse(sparseIndices: Operand<TInt64>, sparseValues: Operand<T>, sparseShape: Operand<TInt64>, outType: DataType<U>): Output<U> {
         val op = ioOps.serializeManySparse(sparseIndices, sparseValues, sparseShape, outType)
         return op.asOutput()
     }
 
-    fun <T : TType> serializeSparse(sparseIndices : Operand<TInt64>, sparseValues : Operand<T>, sparseShape : Operand<TInt64>) : Output<TString> {
+    fun <T : TType> serializeSparse(sparseIndices: Operand<TInt64>, sparseValues: Operand<T>, sparseShape: Operand<TInt64>): Output<TString> {
         val op = ioOps.serializeSparse(sparseIndices, sparseValues, sparseShape)
         return op.asOutput()
     }
 
-    fun <U : TType, T : TType> serializeSparse(sparseIndices : Operand<TInt64>, sparseValues : Operand<T>, sparseShape : Operand<TInt64>, outType : DataType<U>) : Output<U> {
+    fun <U : TType, T : TType> serializeSparse(sparseIndices: Operand<TInt64>, sparseValues: Operand<T>, sparseShape: Operand<TInt64>, outType: DataType<U>): Output<U> {
         val op = ioOps.serializeSparse(sparseIndices, sparseValues, sparseShape, outType)
         return op.asOutput()
     }
 
-    fun <T : TType> serializeTensor(tensor : Operand<T>) : Output<TString> {
+    fun <T : TType> serializeTensor(tensor: Operand<T>): Output<TString> {
         val op = ioOps.serializeTensor(tensor)
         return op.asOutput()
     }
 
-    fun shardedFilename(basename : Operand<TString>, shard : Operand<TInt32>, numShards : Operand<TInt32>) : Output<TString> {
+    fun shardedFilename(basename: Operand<TString>, shard: Operand<TInt32>, numShards: Operand<TInt32>): Output<TString> {
         val op = ioOps.shardedFilename(basename, shard, numShards)
         return op.asOutput()
     }
 
-    fun shardedFilespec(basename : Operand<TString>, numShards : Operand<TInt32>) : Output<TString> {
+    fun shardedFilespec(basename: Operand<TString>, numShards: Operand<TInt32>): Output<TString> {
         val op = ioOps.shardedFilespec(basename, numShards)
         return op.asOutput()
     }
 
-    fun textLineReader(options : TextLineReader.Options) : Output<TType> {
-        val op = ioOps.textLineReader(options)
+    fun textLineReader(vararg options: TextLineReader.Options): Output<TType> {
+        val op = ioOps.textLineReader(*options)
         return op.asOutput()
     }
 
-    fun tfRecordReader(options : TfRecordReader.Options) : Output<TType> {
-        val op = ioOps.tfRecordReader(options)
+    fun tfRecordReader(vararg options: TfRecordReader.Options): Output<TType> {
+        val op = ioOps.tfRecordReader(*options)
         return op.asOutput()
     }
 
-    fun wholeFileReader(options : WholeFileReader.Options) : Output<TType> {
-        val op = ioOps.wholeFileReader(options)
+    fun wholeFileReader(vararg options: WholeFileReader.Options): Output<TType> {
+        val op = ioOps.wholeFileReader(*options)
         return op.asOutput()
     }
 }

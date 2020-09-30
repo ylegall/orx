@@ -10,8 +10,8 @@ import org.tensorflow.types.family.TNumber
 interface KRaggedOps {
     val raggedOps: RaggedOps
 
-    fun <U : TNumber, T : TNumber> raggedBincount(splits : Operand<TInt64>, values : Operand<T>, size : Operand<T>, weights : Operand<U>, options : RaggedBincount.Options) : Output<U> {
-        val op = raggedOps.raggedBincount(splits, values, size, weights, options)
+    fun <U : TNumber, T : TNumber> raggedBincount(splits: Operand<TInt64>, values: Operand<T>, size: Operand<T>, weights: Operand<U>, vararg options: RaggedBincount.Options): Output<U> {
+        val op = raggedOps.raggedBincount(splits, values, size, weights, *options)
         return op.asOutput()
     }
 }

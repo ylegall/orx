@@ -1,6 +1,6 @@
-import org.openrndr.extra.tensorflow.ops.KLinalgOps
-import org.openrndr.extra.tensorflow.ops.KMathOps
-import org.openrndr.extra.tensorflow.ops.KShapeOps
+package org.openrndr.extra.tensorflow
+
+import org.openrndr.extra.tensorflow.ops.*
 import org.tensorflow.*
 import org.tensorflow.op.*
 import org.tensorflow.op.core.*
@@ -14,8 +14,49 @@ import org.tensorflow.types.*
 import org.tensorflow.types.family.TNumber
 import org.tensorflow.types.family.TType
 
-class GraphBuilder(val executionEnvironment: ExecutionEnvironment) : KShapeOps, KMathOps, KLinalgOps {
+class GraphBuilder(executionEnvironment: ExecutionEnvironment)
+    : KAudioOps,
+        KBitwiseOps,
+        KDataOps,
+        KDtypesOps,
+        KImageOps,
+        KIoOps,
+        KLinalgOps,
+        KMathOps,
+        KNnOps,
+        KQuantizationOps,
+        KRaggedOps,
+        KRandomOps,
+        KShapeOps,
+        KSignalOps,
+        KSparseOps,
+        KStringsOps,
+        KSummaryOps,
+        KTrainOps,
+        KXlaOps
 
+        {
+
+    val ops = Ops.create(executionEnvironment)
+    override val audioOps by lazy { ops.audio }
+    override val bitwiseOps by lazy { ops.bitwise }
+    override val dataOps by lazy { ops.data }
+    override val dtypesOps by lazy { ops.dtypes }
+    override val imageOps by lazy { ops.image}
+    override val ioOps by lazy { ops.io }
+    override val linalgOps by lazy { ops.linalg }
+    override val mathOps by lazy { ops.math }
+    override val nnOps by lazy { ops.nn }
+    override val quantizationOps by lazy { ops.quantization }
+    override val raggedOps by lazy { ops.ragged }
+    override val randomOps by lazy { ops.random }
+    override val shapeOps by lazy { ops.shape }
+    override val signalOps by lazy { ops.signal }
+    override val sparseOps by lazy { ops.sparse }
+    override val stringsOps by lazy { ops.strings }
+    override val summaryOps by lazy { ops.summary }
+    override val trainOps by lazy { ops.train }
+    override val xlaOps by lazy { ops.xla }
 
     val scope by lazy { ops.scope() }
     val inputs = mutableMapOf<String, Tensor<*>?>()
@@ -99,93 +140,14 @@ class GraphBuilder(val executionEnvironment: ExecutionEnvironment) : KShapeOps, 
         return Mul.create(scope, this, scale).asOutput()
     }
 
-    inline operator fun <reified T : TType> Output<T>.plus(add: Output<T>): Output<T> {
+    operator fun <T : TType> Output<T>.plus(add: Output<T>): Output<T> {
         return Add.create(scope, this, add).op().output(0)
     }
 
-    fun range(start: Int, limit: Int, delta: Int): Output<TInt32> {
-        val startConstant = (start.constant()).op().output<TInt32>(0)
-        val limitConstant = (limit.constant()).op().output<TInt32>(0)
-        val deltaConstant = (delta.constant()).op().output<TInt32>(0)
-        return Range.create(scope, startConstant, limitConstant, deltaConstant).op().output(0)
+    operator fun <T : TType> Output<T>.minus(add: Output<T>): Output<T> {
+        return Sub.create(scope, this, add).op().output(0)
     }
 
-    fun range(start: Long, limit: Long, delta: Long): Output<TInt64> {
-        val startConstant = (start.constant()).op().output<TInt64>(0)
-        val limitConstant = (limit.constant()).op().output<TInt64>(0)
-        val deltaConstant = (delta.constant()).op().output<TInt64>(0)
-        return Range.create(scope, startConstant, limitConstant, deltaConstant).op().output(0)
-    }
-
-    fun <T : TType> Output<T>.argMax(depth: Long = 0): Output<T> {
-        val depthConstant = depth.constant()
-        return ArgMax.create(scope, this, depthConstant).op().output(0)
-    }
-
-    fun <T : TType> Output<T>.expandDims(axis: Long = 0): Output<T> {
-        val depthConstant = axis.constant()
-        return ExpandDims.create(scope, this, depthConstant).asOutput()
-    }
-
-    fun <T : TType> Output<T>.reverse(axis: Long): Output<T> {
-        return Reverse.create(scope, this, longArrayOf(axis).constant()).asOutput()
-    }
-
-    fun <T : TType> Output<T>.sigmoid(): Output<T> {
-        return Sigmoid.create(scope, this).asOutput()
-    }
-
-    fun Output<TFloat32>.resizeBilinear(size: IntArray): Output<TFloat32> {
-        return ResizeBilinear.create(scope, this, size.constant()).asOutput()
-    }
-
-    fun <T : TType> Output<T>.slice(start: LongArray, size: LongArray): Output<T> {
-        return Slice.create(scope, this, start.constant(), size.constant()).asOutput()
-    }
-
-    fun <T : TType> Output<T>.castToFloat32(): Output<TFloat32> {
-        return Cast.create(scope, this, TFloat32.DTYPE).asOutput() as Output<TFloat32>
-    }
-
-    fun <T : TType> Output<T>.castToInt32(): Output<TInt32> {
-        return Cast.create(scope, this, TInt32.DTYPE).asOutput() as Output<TInt32>
-    }
-
-    fun Output<TFloat32>.greater(comp: Float): Output<TBool> {
-        return Greater.create(scope, this, scalarConstant(comp)).asOutput()
-    }
-
-    fun <T : TNumber> Output<T>.oneHot(size: Int, onValue: Float = 1.0f, offValue: Float = 0.0f): Output<TFloat32> {
-        return OneHot.create(scope, this, scalarConstant(size), scalarConstant(onValue), scalarConstant(offValue)).asOutput()
-    }
-
-    fun <T : TNumber> Output<T>.relu(): Output<T> = Relu.create(scope, this).asOutput()
-    fun <T : TNumber> Output<T>.relu6(): Output<T> = Relu6.create(scope, this).asOutput()
-
-    fun <T : TNumber> Output<T>.l2Loss(t: Operand<T>): Output<T> =
-            L2Loss.create(scope, this).asOutput()
-
-    fun <T : TNumber> Output<T>.biasAdd(bias: Operand<T>): Output<T> =
-            BiasAdd.create(scope, this, bias).asOutput()
-
-
-    fun <T : TType> Output<T>.squeeze(axis: LongArray): Output<T> {
-        val options = Squeeze.axis(axis.toList())
-        return Squeeze.create(scope, this, options).asOutput()
-    }
-
-    fun <T : TNumber> Output<T>.cropAndResize(
-            boxes: Array<FloatArray>,
-            boxIndices: IntArray,
-            size: IntArray
-    ): Output<TFloat32> {
-        return CropAndResize.create(scope, this, arrayConstant(boxes), boxIndices.constant(), size.constant()).asOutput()
-    }
-
-    val ops = Ops.create(executionEnvironment)
-    override val shapeOps by lazy { ops.shape }
-    override val mathOps by lazy { ops.math }
-    override val linalgOps by lazy {ops.linalg}
 }
 
 fun graph(builder: GraphBuilder.() -> Unit): Graph {

@@ -1,15 +1,12 @@
 package org.openrndr.extra.tensorflow
 
-import org.bytedeco.javacpp.annotation.StdMove
+
 import org.openrndr.draw.ColorBuffer
 import org.openrndr.draw.ColorFormat
 import org.openrndr.draw.ColorType
 import org.openrndr.draw.colorBuffer
 import org.tensorflow.Tensor
-import org.tensorflow.internal.buffer.TensorBuffers
 import org.tensorflow.ndarray.StdArrays
-import org.tensorflow.ndarray.buffer.FloatDataBuffer
-import org.tensorflow.ndarray.impl.dense.FloatDenseNdArray
 import org.tensorflow.types.*
 import org.tensorflow.types.family.TType
 import java.nio.ByteBuffer

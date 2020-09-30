@@ -13,17 +13,17 @@ import org.tensorflow.types.family.TType
 interface KDtypesOps {
     val dtypesOps: DtypesOps
 
-    fun <T : TType> asString(input : Operand<T>, options : AsString.Options) : Output<TString> {
-        val op = dtypesOps.asString(input, options)
+    fun <T : TType> asString(input: Operand<T>, vararg options: AsString.Options): Output<TString> {
+        val op = dtypesOps.asString(input, *options)
         return op.asOutput()
     }
 
-    fun <U : TType, T : TType> cast(x : Operand<T>, DstT : DataType<U>, options : Cast.Options) : Output<U> {
-        val op = dtypesOps.cast(x, DstT, options)
+    fun <U : TType, T : TType> cast(x: Operand<T>, DstT: DataType<U>, vararg options: Cast.Options): Output<U> {
+        val op = dtypesOps.cast(x, DstT, *options)
         return op.asOutput()
     }
 
-    fun <U : TType, T : TNumber> complex(real : Operand<T>, imag : Operand<T>, Tout : DataType<U>) : Output<U> {
+    fun <U : TType, T : TNumber> complex(real: Operand<T>, imag: Operand<T>, Tout: DataType<U>): Output<U> {
         val op = dtypesOps.complex(real, imag, Tout)
         return op.asOutput()
     }
