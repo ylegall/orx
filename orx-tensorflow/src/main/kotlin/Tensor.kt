@@ -100,7 +100,7 @@ fun Tensor<TFloat32>.toFloatArray(): FloatArray {
 
 fun Tensor<TFloat32>.toFloatArray2D(): FloatArray2D {
     val shape = this.shape()
-    require(shape.numDimensions() == 3) {
+    require(shape.numDimensions() == 2) {
         "tensor has ${shape.numDimensions()} dimensions, need 2"
     }
     val tensorData = data()
