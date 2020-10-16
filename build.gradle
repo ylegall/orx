@@ -24,7 +24,7 @@ project.ext {
     libfreenectVersion = "0.5.7-1.5.4"
     gsonVersion = "2.8.6"
     antlrVersion = "4.8-1"
-    tensorflowVersion = "0.2.0-SNAPSHOT"
+    tensorflowVersion = "0.2.0"
 }
 
 switch (org.gradle.internal.os.OperatingSystem.current()) {
@@ -68,6 +68,7 @@ allprojects {
             mavenLocal()
         }
 
+        mavenCentral()
         jcenter()
         maven {
             url = "https://dl.bintray.com/openrndr/openrndr"
